@@ -87,6 +87,9 @@ void cTCPServer::socketListeningThreadFunction()
         try
         {
             m_oTCPAcceptor.accept(*pClientSocket->getBoostSocketPointer(), oEndPoint); //Accept connection from a client.
+
+            m_vpConnectionThreads.push_back(boost::make_shared<cConnectionThread>(pClientSocket));
+            cout << "There are now " << m_vpConnectionThreads.size() << " clients connected." << endl;
         }
         catch(boost::system::system_error const &oSystemError)
         {
@@ -100,7 +103,7 @@ void cTCPServer::socketListeningThreadFunction()
     m_oTCPAcceptor.close();
 }
 
-bool cTCPServer::offloadData_callback(char* cpData, uint32_t u32Size_B)
+bool cTCPServer::writeData(char* cpData, uint32_t u32Size_B)
 {
     boost::shared_lock<boost::shared_mutex> oLock(m_oConnectThreadsMutex);
 

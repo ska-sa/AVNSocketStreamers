@@ -23,6 +23,7 @@ typedef unsigned __int64 uint64_t;
 #ifndef Q_MOC_RUN //Qt's MOC and Boost have some issues don't let MOC process boost headers
 #include <boost/thread.hpp>
 #include <boost/scoped_ptr.hpp>
+#include <boost/shared_array.hpp>
 #include <boost/thread/shared_mutex.hpp>
 #endif
 
@@ -36,7 +37,7 @@ public:
     class cUDPReceiverCallbackInterface
     {
     public:
-          virtual bool offloadData_callback(char* pData, uint32_t u32Size_B) = 0;
+        virtual bool offloadData_callback(char* pData, uint32_t u32Size_B) = 0;
     };
 
 
@@ -60,8 +61,8 @@ public:
     uint32_t                                                        getNextPacketSize_B();
     bool                                                            getNextPacket(char *cpData, bool bPopData = true);
 
-    void                                                            registerCallbackHandler(boost::scoped_ptr<cUDPReceiverCallbackInterface>);
-    void                                                            deregisterCallbackHandler(boost::scoped_ptr<cUDPReceiverCallbackInterface>);
+    void                                                            registerCallbackHandler(boost::shared_ptr<cUDPReceiverCallbackInterface> pNewHandler);
+    void                                                            deregisterCallbackHandler(boost::shared_ptr<cUDPReceiverCallbackInterface> pHandler);
 
     static const unsigned int                                       SYNC_WORD = 0xa1b2c3d4;
 
@@ -77,7 +78,7 @@ private:
     boost::shared_mutex                                             m_bFlagMutex;
 
     //Callback handlers
-    std::vector<boost::scoped_ptr<cUDPReceiverCallbackInterface> > m_vCallbackHandlers;
+    std::vector<boost::shared_ptr<cUDPReceiverCallbackInterface> >  m_vpCallbackHandlers;
 
     //Socket
     cInterruptibleBlockingUDPSocket                                 m_oUDPSocket;

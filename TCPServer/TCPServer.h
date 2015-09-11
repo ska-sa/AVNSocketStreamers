@@ -23,6 +23,7 @@ typedef unsigned __int64 uint64_t;
 #ifndef Q_MOC_RUN //Qt's MOC and Boost have some issues don't let MOC process boost headers
 #include <boost/thread.hpp>
 #include <boost/scoped_ptr.hpp>
+#include <boost/shared_ptr.hpp>
 #include <boost/thread/shared_mutex.hpp>
 #include <boost/asio/ip/tcp.hpp>
 #include <boost/asio/io_service.hpp>
@@ -31,21 +32,20 @@ typedef unsigned __int64 uint64_t;
 //Local includes
 #include "../../../AVNUtilLibs/DataStructures/ThreadSafeCircularBuffer/ThreadSafeCircularBuffer.h"
 #include "../../../AVNUtilLibs/Socket/InterruptableBlockingSockets/InterruptableBlockingUDPSocket.h"
-#include "../UDPReceiver/UDPReceiver.h"
 #include "ConnectionThread.h"
 
-class cTCPServer : public cUDPReceiver::cUDPReceiverCallbackInterface
+class cTCPServer
 {
 public:
-    explicit cTCPServer(const std::string &strInterface = std::string("0.0.0.0"), uint16_t usPort = 60001, uint32_t u32MaxConnections = 0);
-    ~cTCPServer();
+    cTCPServer(const std::string &strInterface = std::string("0.0.0.0"), uint16_t usPort = 60001, uint32_t u32MaxConnections = 0);
+    virtual ~cTCPServer();
 
-    bool                                                offloadData_callback(char* cpData, uint32_t u32Size_B);
+    bool                                                writeData(char* cpData, uint32_t u32Size_B);
 
     void                                                shutdown();
     bool                                                isShutdownRequested();
 
-private:
+protected:
     bool                                                m_bShutdownFlag;
     boost::shared_mutex                                 m_bShutdownFlagMutex;
 
@@ -53,10 +53,10 @@ private:
     std::string                                         m_strInterface;
     uint16_t                                            m_u16Port;
 
-    boost::asio::ip::tcp::acceptor                      m_oTCPAcceptor;
     boost::asio::io_service                             m_oIOService;
+    boost::asio::ip::tcp::acceptor                      m_oTCPAcceptor;
 
-    std::vector<boost::scoped_ptr<cConnectionThread> >  m_vpConnectionThreads;
+    std::vector<boost::shared_ptr<cConnectionThread> >  m_vpConnectionThreads;
     boost::shared_mutex                                 m_oConnectThreadsMutex;
 
     void socketListeningThreadFunction();

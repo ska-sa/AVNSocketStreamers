@@ -278,12 +278,35 @@ void cUDPReceiver::dataOffloadingThreadFunction()
             }
         }
 
-        for(uint32_t ui = 0; ui < m_vCallbackHandlers.size(); ui++)
+        for(uint32_t ui = 0; ui < m_vpCallbackHandlers.size(); ui++)
         {
-            m_vCallbackHandlers[ui]->offloadData_callback(m_oBuffer.getElementDataPointer(i32Index), m_oBuffer.getElementPointer(i32Index)->allocationSize());
+            if(m_vpCallbackHandlers[ui])
+            {
+                m_vpCallbackHandlers[ui]->offloadData_callback(m_oBuffer.getElementDataPointer(i32Index), m_oBuffer.getElementPointer(i32Index)->allocationSize());
+            }
+            else
+            {
+                //Remove the element if the pointer is null
+                m_vpCallbackHandlers.erase(m_vpCallbackHandlers.begin() + ui);
+                ui--;
+            }
         }
 
         m_oBuffer.elementRead(); //Signal to pop element off FIFO
     }
 }
 
+void cUDPReceiver::registerCallbackHandler(boost::shared_ptr<cUDPReceiverCallbackInterface> pNewHandler)
+{
+    m_vpCallbackHandlers.push_back(pNewHandler);
+}
+
+void cUDPReceiver::deregisterCallbackHandler(boost::shared_ptr<cUDPReceiverCallbackInterface> pHandler)
+{
+    //Search for matching pointer values and erase
+    for(uint32_t ui = 0; ui < m_vpCallbackHandlers.size(); ui++)
+    {
+        if(m_vpCallbackHandlers[ui].get() == pHandler.get())
+            m_vpCallbackHandlers.erase(m_vpCallbackHandlers.begin() + ui);
+    }
+}

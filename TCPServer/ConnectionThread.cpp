@@ -1,15 +1,21 @@
+
 //System includes
+#include <iostream>
 
 //Library include:
 
 //Local includes
 #include "ConnectionThread.h"
 
+using namespace std;
+
 cConnectionThread::cConnectionThread(boost::shared_ptr<cInterruptibleBlockingTCPSocket> pClientSocket) :
     m_bIsValid(true),
     m_oBuffer(64, 1040 * 16) //16 packets of 1040 bytes for each complex uint32_t FFT window of 2 channels or or I,Q,U,V uint32_t stokes parameters.
 {
     m_pClientSocket.swap(pClientSocket);
+
+    cout << "New connection open to host: " << m_pClientSocket->getConnectedRemoteAddress() << endl;
 
     m_pSocketWritingThread.reset(new boost::thread(&cConnectionThread::socketWritingThreadFunction, this));
 }
