@@ -25,7 +25,7 @@ typedef unsigned __int64 uint64_t;
 
 //Local includes
 #include "../../../AVNUtilLibs/DataStructures/ThreadSafeCircularBuffer/ThreadSafeCircularBuffer.h"
-#include "../../../AVNUtilLibs/Socket/InterruptableBlockingSockets/InterruptableBlockingTCPSocket.h"
+#include "../../../AVNUtilLibs/Sockets/InterruptibleBlockingSockets/InterruptibleBlockingTCPSocket.h"
 #include "../UDPReceiver/UDPReceiver.h"
 
 class cConnectionThread

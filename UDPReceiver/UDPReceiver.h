@@ -29,7 +29,7 @@ typedef unsigned __int64 uint64_t;
 
 //Local includes
 #include "../../../AVNUtilLibs/DataStructures/ThreadSafeCircularBuffer/ThreadSafeCircularBuffer.h"
-#include "../../../AVNUtilLibs/Socket/InterruptableBlockingSockets/InterruptableBlockingUDPSocket.h"
+#include "../../../AVNUtilLibs/Sockets/InterruptibleBlockingSockets/InterruptibleBlockingUDPSocket.h"
 
 class cUDPReceiver
 {
@@ -41,7 +41,7 @@ public:
     };
 
 
-    explicit cUDPReceiver(const std::string &strRemoteAddress, uint16_t usRemotePort = 60001);
+    explicit cUDPReceiver(const std::string &strLocalInterface, uint16_t u16LocalPort = 60000, const std::string &strPeerAddress = std::string(""), uint16_t usPeerPort = 60001);
     ~cUDPReceiver();
 
     void                                                            startReceiving();
@@ -67,9 +67,9 @@ public:
     static const unsigned int                                       SYNC_WORD = 0xa1b2c3d4;
 
 private:
-    std::string                                                     m_strRemoteAddress;
-    uint16_t                                                        m_u16RemotePort;
-    std::string                                                     m_strLocalInterfaceAddress;
+    std::string                                                     m_strPeerAddress;
+    uint16_t                                                        m_u16PeerPort;
+    std::string                                                     m_strLocalInterface;
     uint16_t                                                        m_u16LocalPort;
 
     bool                                                            m_bReceivingEnabled;

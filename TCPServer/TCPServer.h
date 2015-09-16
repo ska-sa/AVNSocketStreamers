@@ -25,13 +25,12 @@ typedef unsigned __int64 uint64_t;
 #include <boost/scoped_ptr.hpp>
 #include <boost/shared_ptr.hpp>
 #include <boost/thread/shared_mutex.hpp>
-#include <boost/asio/ip/tcp.hpp>
-#include <boost/asio/io_service.hpp>
 #endif
 
 //Local includes
 #include "../../../AVNUtilLibs/DataStructures/ThreadSafeCircularBuffer/ThreadSafeCircularBuffer.h"
-#include "../../../AVNUtilLibs/Socket/InterruptableBlockingSockets/InterruptableBlockingUDPSocket.h"
+#include "../../../AVNUtilLibs/Sockets/InterruptibleBlockingSockets/InterruptibleBlockingUDPSocket.h"
+#include "../../../AVNUtilLibs/Sockets/InterruptibleBlockingSocketAcceptors/InterruptibleBlockingTCPAcceptor.h"
 #include "ConnectionThread.h"
 
 class cTCPServer
@@ -53,8 +52,7 @@ protected:
     std::string                                         m_strInterface;
     uint16_t                                            m_u16Port;
 
-    boost::asio::io_service                             m_oIOService;
-    boost::asio::ip::tcp::acceptor                      m_oTCPAcceptor;
+    cInterruptibleBlockingTCPAcceptor                   m_oTCPAcceptor;
 
     std::vector<boost::shared_ptr<cConnectionThread> >  m_vpConnectionThreads;
     boost::shared_mutex                                 m_oConnectThreadsMutex;

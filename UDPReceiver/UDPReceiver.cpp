@@ -12,9 +12,11 @@
 
 using namespace std;
 
-cUDPReceiver::cUDPReceiver(const string &strRemoteAddress, uint16_t u16RemotePort) :
-    m_strRemoteAddress(strRemoteAddress),
-    m_u16RemotePort(u16RemotePort),
+cUDPReceiver::cUDPReceiver(const string &strLocalInterface, uint16_t u16LocalPort, const string &strPeerAddress, uint16_t u16PeerPort) :
+    m_strLocalInterface(strLocalInterface),
+    m_u16LocalPort(u16LocalPort), 
+    m_strPeerAddress(strPeerAddress),
+    m_u16PeerPort(u16PeerPort),
     m_bReceivingEnabled(false),
     m_bCallbackOffloadingEnabled(false),
     m_bShutdownFlag(false),
@@ -55,7 +57,6 @@ void cUDPReceiver::startReceiving()
 {
     cout << "cUDPReceiver::startReceiving()" << endl;
 
-    m_oUDPSocket.openAndConnectSocket(m_strRemoteAddress, m_u16RemotePort);
     u64TotalBytesProcessed = 0;
 
     {
@@ -94,7 +95,7 @@ void cUDPReceiver::startCallbackOffloading()
 
     clearBuffer();
 
-    m_pSocketReceivingThread.reset(new boost::thread(&cUDPReceiver::socketReceivingThreadFunction, this));
+    m_pSocketReceivingThread.reset(new boost::thread(&cUDPReceiver::dataOffloadingThreadFunction, this));
 }
 
 void cUDPReceiver::stopCallbackOffloading()
@@ -133,6 +134,26 @@ bool cUDPReceiver::isShutdownRequested()
 
 void cUDPReceiver::socketReceivingThreadFunction()
 {
+    cout << "Entered cUDPReceiver::socketReceivingThreadFunction()" << endl;
+
+    //First attempt to bind socket
+    
+    //m_oUDPSocket.openBindAndConnect(m_strLocalInterface, m_u16LocalPort, m_strPeerAddress, m_u16PeerPort);
+    while(!m_oUDPSocket.openAndBind(m_strLocalInterface, m_u16LocalPort))
+    {
+        if(isShutdownRequested() || !isReceivingEnabled())
+        {
+            cout << "cUDPReceiver::socketReceivingThreadFunction(): Got shutdown flag, returning." << endl;
+            return;
+        }
+
+        //Wait some time then try to bind again...
+        boost::this_thread::sleep(boost::posix_time::milliseconds(2000));
+        cout << "cUDPReceiver::socketReceivingThreadFunction(): Retrying socket binding to " << m_strLocalInterface << ":" << m_u16LocalPort << endl;
+    }
+
+    //Enter thread loop, repeated reading into the FIFO
+
     boost::system::error_code oEC;
 
     uint32_t u32PacketsReceived = 0;
@@ -152,8 +173,8 @@ void cUDPReceiver::socketReceivingThreadFunction()
             //Also check for shutdown flag
             if(!isReceivingEnabled() || isShutdownRequested())
             {
-                cout << "Exiting receiving thread." << endl;
-                cout << "Received " << u32PacketsReceived << " packets." << endl;
+                cout << "cUDPReceiver::socketReceivingThread(): Exiting receiving thread." << endl;
+                cout << "---- Received " << u32PacketsReceived << " packets. ----" << endl;
                 return;
             }
         }
@@ -162,7 +183,7 @@ void cUDPReceiver::socketReceivingThreadFunction()
         uint32_t u32UDPBytesAvailable = m_oUDPSocket.getBytesAvailable();
         if(u32UDPBytesAvailable > m_oBuffer.getElementPointer(i32Index)->allocationSize())
         {
-            cout << "Warning: Input buffer element size is too small for UDP packet." << endl;
+            cout << "cUDPReceiver::socketReceivingThread(): Warning: Input buffer element size is too small for UDP packet." << endl;
             cout << "Resizing to " << u32UDPBytesAvailable << " bytes" << endl;
 
             m_oBuffer.resize(m_oBuffer.getNElements(), u32UDPBytesAvailable);
@@ -173,9 +194,12 @@ void cUDPReceiver::socketReceivingThreadFunction()
 
         while(i32BytesLeftToRead)
         {
-            if(!m_oUDPSocket.receive(m_oBuffer.getElementDataPointer(i32Index) + m_oBuffer.getElementPointer(i32Index)->dataSize(), i32BytesLeftToRead) )
+            string strSender;
+            uint16_t u16Port;
+            //if(!m_oUDPSocket.receive(m_oBuffer.getElementDataPointer(i32Index) + m_oBuffer.getElementPointer(i32Index)->dataSize(), i32BytesLeftToRead) )
+            if(!m_oUDPSocket.receiveFrom(m_oBuffer.getElementDataPointer(i32Index) + m_oBuffer.getElementPointer(i32Index)->dataSize(), i32BytesLeftToRead, strSender, u16Port) )
             {
-                cout << "Warning socket error: " << m_oUDPSocket.getLastError().message() << endl;
+                cout << "cUDPReceiver::socketReceivingThread(): Warning socket error: " << m_oUDPSocket.getLastError().message() << endl;
             }
             else
             {
@@ -186,15 +210,21 @@ void cUDPReceiver::socketReceivingThreadFunction()
 
             i32BytesLeftToRead -= i32BytesLastRead;
             m_oBuffer.getElementPointer(i32Index)->setDataAdded(i32BytesLastRead);
+
+            //Also check for shutdown flag
+            if(!isReceivingEnabled() || isShutdownRequested())
+            {
+                cout << "cUDPReceiver::socketReceivingThread(): Exiting receiving thread." << endl;
+                cout << "---- Received " << u32PacketsReceived << " packets. ----" << endl;
+                return;
+            }
         }
         //Signal we have completely filled an element of the input buffer.
         m_oBuffer.elementWritten();
 
-        //cout << "Received " << iBytesLastRead << " bytes from UDP socket" << endl;
-        //cout << "m_oInputBuffer (" << &m_oInputBuffer << ") element written. Level is now " << m_oInputBuffer.getLevel() << endl;
     }
 
-    cout << "Exiting receiving thread." << endl;
+    cout << "cUDPReceiver::socketReceivingThread(): Exiting receiving thread." << endl;
     cout << "---- Received " << u32PacketsReceived << " packets ----" << endl;
     fflush(stdout);
 }
@@ -212,7 +242,7 @@ uint32_t cUDPReceiver::getNextPacketSize_B()
         //Also check for shutdown flag
         if(!isReceivingEnabled() || isShutdownRequested())
         {
-            cout << "Aborting reading next packet from UDPReceiver." << endl;
+            cout << "cUDPReceiver::getNextPacketSize_B(): Got stop flag. Aborting..." << endl;
             return false;
         }
     }
@@ -239,7 +269,7 @@ bool cUDPReceiver::getNextPacket(char *cpData, bool bPopData)
         //Also check for shutdown flag
         if(!isReceivingEnabled() || isShutdownRequested())
         {
-            cout << "Aborting reading next packet from UDPReceiver." << endl;
+            cout << "cUDPReceiver::getNextPacket(): Got stop flag. Aborting..." << endl;
             return false;
         }
     }
@@ -250,7 +280,7 @@ bool cUDPReceiver::getNextPacket(char *cpData, bool bPopData)
     {
         if(m_bCallbackOffloadingEnabled)
         {
-            cout << "Warning. Popping data while callback offloading is enabled. Data may be insistency distributed amongst destinations." << endl;
+            cout << "cUDPReceiver::getNextPacket(): Warning. Popping data while callback offloading is enabled. Data may be insistency distributed amongst destinations." << endl;
         }
         m_oBuffer.elementRead(); //Signal to pop element off FIFO
     }
@@ -260,6 +290,8 @@ bool cUDPReceiver::getNextPacket(char *cpData, bool bPopData)
 
 void cUDPReceiver::dataOffloadingThreadFunction()
 {
+    cout << "Entered cUDPReceiver::dataOffloadingThreadFuncton()." << endl;
+
     while(isCallbackOffloadingEnabled() && !isShutdownRequested())
     {
         //Get (or wait for) the next available element to read data from
@@ -273,7 +305,7 @@ void cUDPReceiver::dataOffloadingThreadFunction()
             //Also check for shutdown flag
             if(!m_bCallbackOffloadingEnabled || isShutdownRequested())
             {
-                cout << "Aborting reading next packet from UDPReceiver." << endl;
+                cout << "cUDPReceiver::dataOffloadingThreadFunction(): Got stop flag. Aborting..." << endl;
                 return;
             }
         }
@@ -294,6 +326,8 @@ void cUDPReceiver::dataOffloadingThreadFunction()
 
         m_oBuffer.elementRead(); //Signal to pop element off FIFO
     }
+
+    cout << "Exiting cUDPReceiver::dataOffloadingThreadFunction()." << endl;
 }
 
 void cUDPReceiver::registerCallbackHandler(boost::shared_ptr<cUDPReceiverCallbackInterface> pNewHandler)

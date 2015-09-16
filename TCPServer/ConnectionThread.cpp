@@ -15,7 +15,7 @@ cConnectionThread::cConnectionThread(boost::shared_ptr<cInterruptibleBlockingTCP
 {
     m_pClientSocket.swap(pClientSocket);
 
-    cout << "New connection open to host: " << m_pClientSocket->getConnectedRemoteAddress() << endl;
+    cout << "Got new connection from host: " << m_pClientSocket->getRemoteAddress() << endl;
 
     m_pSocketWritingThread.reset(new boost::thread(&cConnectionThread::socketWritingThreadFunction, this));
 }

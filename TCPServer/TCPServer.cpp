@@ -12,7 +12,6 @@
 
 cTCPServer::cTCPServer(const std::string &strInterface, uint16_t u16Port, uint32_t u32MaxConnections) :
     m_bShutdownFlag(false),
-    m_oTCPAcceptor(m_oIOService),
     m_strInterface(strInterface),
     m_u16Port(u16Port),
     m_u32MaxConnections(u32MaxConnections)
@@ -24,7 +23,7 @@ cTCPServer::~cTCPServer()
 {
     shutdown();
 
-    if(m_oTCPAcceptor.is_open())
+    if(m_oTCPAcceptor.isOpen())
         m_oTCPAcceptor.close();
 
     if(m_pSocketListeningThread.get())
@@ -55,16 +54,13 @@ void cTCPServer::socketListeningThreadFunction()
     while(!isShutdownRequested())
     {
         //If the listening socket exists already close it
-        if(m_oTCPAcceptor.is_open())
+        if(m_oTCPAcceptor.isOpen())
             m_oTCPAcceptor.close();
 
         //Listen for incoming connects from clients
         try
         {
-            m_oTCPAcceptor.open(boost::asio::ip::tcp::v4()); //Use only IPv4
-            m_oTCPAcceptor.set_option(boost::asio::ip::tcp::acceptor::reuse_address(true)); //Set Listening socket to reuse address.
-            m_oTCPAcceptor.bind(boost::asio::ip::tcp::endpoint(boost::asio::ip::address::from_string(m_strInterface), m_u16Port));
-            m_oTCPAcceptor.listen();
+            m_oTCPAcceptor.openAndListen(m_strInterface, m_u16Port);
 
             break;
         }
@@ -83,24 +79,26 @@ void cTCPServer::socketListeningThreadFunction()
         cout << "Listening for client connections..." << endl;
 
         boost::shared_ptr<cInterruptibleBlockingTCPSocket> pClientSocket = boost::make_shared<cInterruptibleBlockingTCPSocket>(); //A socket object to store the incoming connection
-        boost::asio::ip::tcp::acceptor::endpoint_type oEndPoint; //A endpoint object to store details about the client
         try
         {
-            m_oTCPAcceptor.accept(*pClientSocket->getBoostSocketPointer(), oEndPoint); //Accept connection from a client.
+            string strPeerAddress;
+            m_oTCPAcceptor.accept(pClientSocket, strPeerAddress); //Accept connection from a client.
 
             m_vpConnectionThreads.push_back(boost::make_shared<cConnectionThread>(pClientSocket));
             cout << "There are now " << m_vpConnectionThreads.size() << " clients connected." << endl;
         }
         catch(boost::system::system_error const &oSystemError)
         {
-            cout << "Accept incoming connection." << endl;
+            cout << "cTCPServer::socketListeningThreadFunction(): Caught Exception on accepting incoming connection." << endl;
             cout << "The error was: " << oSystemError.what() << endl;
             continue; //Try again
         }
 
     }
-    cout << "Returning from thread function." << endl;
+
     m_oTCPAcceptor.close();
+
+    cout << "cTCPServer::socketListeningThreadFunction(): Returning from thread function." << endl;
 }
 
 bool cTCPServer::writeData(char* cpData, uint32_t u32Size_B)
