@@ -58,13 +58,11 @@ public:
 
     void                                                            clearBuffer();
 
-    uint32_t                                                        getNextPacketSize_B();
-    bool                                                            getNextPacket(char *cpData, bool bPopData = true);
+    int32_t getNextPacketSize_B(uint32_t u32Timeout_ms = 0);
+    bool                                                            getNextPacket(char *cpData, uint32_t u32Timeout_ms = 0, bool bPopData = true);
 
     void                                                            registerCallbackHandler(boost::shared_ptr<cTCPReceiverCallbackInterface> pNewHandler);
     void                                                            deregisterCallbackHandler(boost::shared_ptr<cTCPReceiverCallbackInterface> pHandler);
-
-    static const unsigned int                                       SYNC_WORD = 0xa1b2c3d4;
 
 private:
     std::string                                                     m_strPeerAddress;
@@ -74,6 +72,7 @@ private:
     bool                                                            m_bCallbackOffloadingEnabled;
     bool                                                            m_bShutdownFlag;
     boost::shared_mutex                                             m_bFlagMutex;
+    boost::shared_mutex                                             m_oCallbackHandlersMutex;
 
     //Callback handlers
     std::vector<boost::shared_ptr<cTCPReceiverCallbackInterface> >  m_vpCallbackHandlers;

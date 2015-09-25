@@ -5,6 +5,7 @@
 //Library includes
 #ifndef Q_MOC_RUN //Qt's MOC and Boost have some issues don't let MOC process boost headers
 #include <boost/asio/buffer.hpp>
+#include <boost/date_time/posix_time/posix_time.hpp>
 #endif
 
 //Local includes
@@ -22,7 +23,7 @@ cTCPReceiver::cTCPReceiver(const string &strPeerAddress, uint16_t u16PeerPort) :
     m_pSocketReceivingThread(NULL),
     m_pDataOffloadingThread(NULL),
     m_i32GetRawDataInputBufferIndex(-1),
-    m_oBuffer(64, 1040 * 16) //16 packets of 1040 bytes for each complex uint32_t FFT window of 2 channels or or I,Q,U,V uint32_t stokes parameters.
+    m_oBuffer(1024, 1040)
 {
 }
 
@@ -204,7 +205,6 @@ void cTCPReceiver::socketReceivingThreadFunction()
         }
         //Signal we have completely filled an element of the input buffer.
         m_oBuffer.elementWritten();
-
     }
 
     cout << "cTCPReceiver::socketReceivingThread(): Exiting receiving thread." << endl;
@@ -212,42 +212,67 @@ void cTCPReceiver::socketReceivingThreadFunction()
     fflush(stdout);
 }
 
-uint32_t cTCPReceiver::getNextPacketSize_B()
+int32_t cTCPReceiver::getNextPacketSize_B(uint32_t u32Timeout_ms)
 {
     //Get (or wait for) the next available element to read data from
     //If waiting timeout every 500 ms and check for shutdown or stop streaming flags
     //This prevents the program locking up in this thread.
+
+    //Current time:
+    boost::posix_time::ptime oStartTime = boost::posix_time::microsec_clock::local_time();
+
     int32_t i32Index = -1;
     while(i32Index == -1)
     {
-        i32Index = m_oBuffer.getNextReadIndex(500);
+        boost::posix_time::time_duration oDuration = boost::posix_time::microsec_clock::local_time() - oStartTime;
+        if(u32Timeout_ms && oDuration.total_milliseconds() >= u32Timeout_ms)
+        {
+            cout << "cTCPReceiver::getNextPacketSize_B(): Hit caller specified timeout. Returning." << endl;
+            return -1;
+        }
+
+        i32Index = m_oBuffer.getNextReadIndex(100);
 
         //Also check for shutdown flag
         if(!isReceivingEnabled() || isShutdownRequested())
         {
             cout << "cTCPReceiver::getNextPacketSize_B(): Got stop flag. Aborting..." << endl;
-            return false;
+            return -1;
         }
     }
 
     return m_oBuffer.getElementPointer(i32Index)->allocationSize();
 }
 
-bool cTCPReceiver::getNextPacket(char *cpData, bool bPopData)
+bool cTCPReceiver::getNextPacket(char *cpData, uint32_t u32Timeout_ms, bool bPopData)
 {
     //By setting pop data to false this function can be used to peak into the front of the queue. Otherwise it reads
-    //data off the queue by default. Not bPopData = true should in most cases not be used concurrently with callback
-    //based offloading as this will results in inconsistent data distribution.
+    //data off the queue by default. Note bPopData = true should probably not be used concurrently with callback based
+    //offloading as this will results in inconsistent data distribution.
 
     //Note cpData should be of sufficient size to store data. Check with getNextPacketSize_B()
 
     //Get (or wait for) the next available element to read data from
-    //If waiting timeout every 500 ms and check for shutdown or stop streaming flags
+    //If waiting timeout every 100 ms and check for shutdown or stop streaming flags
     //This prevents the program locking up in this thread.
+
+    //Current time:
+    boost::posix_time::ptime oStartTime = boost::posix_time::microsec_clock::local_time();
+
     int32_t i32Index = -1;
     while(i32Index == -1)
     {
-        i32Index = m_oBuffer.getNextReadIndex(500);
+        boost::posix_time::time_duration oDuration = boost::posix_time::microsec_clock::local_time() - oStartTime;
+        if(u32Timeout_ms && oDuration.total_milliseconds() >= u32Timeout_ms)
+        {
+            cout << "cTCPReceiver::getNextPacket(): Hit caller specified timeout. Returning." << endl;
+            return false;
+        }
+
+        i32Index = m_oBuffer.getNextReadIndex(100);
+
+        if(i32Index == -1)
+            cout << "Got semphore timeout." << endl;
 
         //Also check for shutdown flag
         if(!isReceivingEnabled() || isShutdownRequested())
@@ -293,17 +318,12 @@ void cTCPReceiver::dataOffloadingThreadFunction()
             }
         }
 
-        for(uint32_t ui = 0; ui < m_vpCallbackHandlers.size(); ui++)
         {
-            if(m_vpCallbackHandlers[ui])
+            boost::upgrade_lock<boost::shared_mutex> oLock(m_oCallbackHandlersMutex);
+
+            for(uint32_t ui = 0; ui < m_vpCallbackHandlers.size(); ui++)
             {
                 m_vpCallbackHandlers[ui]->offloadData_callback(m_oBuffer.getElementDataPointer(i32Index), m_oBuffer.getElementPointer(i32Index)->allocationSize());
-            }
-            else
-            {
-                //Remove the element if the pointer is null
-                m_vpCallbackHandlers.erase(m_vpCallbackHandlers.begin() + ui);
-                ui--;
             }
         }
 
@@ -315,15 +335,36 @@ void cTCPReceiver::dataOffloadingThreadFunction()
 
 void cTCPReceiver::registerCallbackHandler(boost::shared_ptr<cTCPReceiverCallbackInterface> pNewHandler)
 {
+    boost::upgrade_lock<boost::shared_mutex> oLock(m_oCallbackHandlersMutex);
+
     m_vpCallbackHandlers.push_back(pNewHandler);
+
+    cout << "cUDPReceiver::registerCallbackHandler(): Successfully registered callback handler: " << pNewHandler.get() << endl;
 }
 
 void cTCPReceiver::deregisterCallbackHandler(boost::shared_ptr<cTCPReceiverCallbackInterface> pHandler)
 {
+    boost::upgrade_lock<boost::shared_mutex> oLock(m_oCallbackHandlersMutex);
+    bool bSuccess = false;
+
     //Search for matching pointer values and erase
-    for(uint32_t ui = 0; ui < m_vpCallbackHandlers.size(); ui++)
+    for(uint32_t ui = 0; ui < m_vpCallbackHandlers.size();)
     {
         if(m_vpCallbackHandlers[ui].get() == pHandler.get())
+        {
             m_vpCallbackHandlers.erase(m_vpCallbackHandlers.begin() + ui);
+
+            cout << "cTCPReceiver::deregisterCallbackHandler(): Deregistered callback handler: " << pHandler.get() << endl;
+            bSuccess = true;
+        }
+        else
+        {
+            ui++;
+        }
+    }
+
+    if(!bSuccess)
+    {
+        cout << "cTCPReceiver::deregisterCallbackHandler(): Warning: Deregistering callback handler: " << pHandler.get() << " failed. Object instance not found." << endl;
     }
 }
