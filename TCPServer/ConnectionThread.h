@@ -43,7 +43,12 @@ public:
     void                                                shutdown();
     bool                                                isShutdownRequested();
 
+    std::string                                         getPeerAddress();
+    std::string                                         getSocketName();
+
 private:
+    std::string                                         m_strPeerAddress;
+
     bool                                                m_bShutdownFlag;
     boost::shared_mutex                                 m_bShutdownFlagMutex;
 
@@ -53,7 +58,7 @@ private:
     //Threads
     boost::scoped_ptr<boost::thread>                   m_pSocketWritingThread;
 
-    boost::shared_ptr<cInterruptibleBlockingTCPSocket> m_pClientSocket;
+    boost::shared_ptr<cInterruptibleBlockingTCPSocket> m_pSocket;
 
     bool                                               m_bIsValid;
     boost::shared_mutex                                m_bValidMutex;

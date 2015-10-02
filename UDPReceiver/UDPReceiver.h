@@ -64,8 +64,6 @@ public:
     void                                                            registerCallbackHandler(boost::shared_ptr<cUDPReceiverCallbackInterface> pNewHandler);
     void                                                            deregisterCallbackHandler(boost::shared_ptr<cUDPReceiverCallbackInterface> pHandler);
 
-    static const unsigned int                                       SYNC_WORD = 0xa1b2c3d4;
-
 private:
     std::string                                                     m_strPeerAddress;
     uint16_t                                                        m_u16PeerPort;
@@ -75,7 +73,8 @@ private:
     bool                                                            m_bReceivingEnabled;
     bool                                                            m_bCallbackOffloadingEnabled;
     bool                                                            m_bShutdownFlag;
-    boost::shared_mutex                                             m_bFlagMutex;
+    boost::shared_mutex                                             m_oFlagMutex;
+    boost::shared_mutex                                             m_oCallbackHandlersMutex;
 
     //Callback handlers
     std::vector<boost::shared_ptr<cUDPReceiverCallbackInterface> >  m_vpCallbackHandlers;

@@ -60,7 +60,7 @@ void cUDPReceiver::startReceiving()
     u64TotalBytesProcessed = 0;
 
     {
-        boost::upgrade_lock<boost::shared_mutex>  oLock(m_bFlagMutex);
+        boost::upgrade_lock<boost::shared_mutex>  oLock(m_oFlagMutex);
         boost::upgrade_to_unique_lock<boost::shared_mutex>  oUniqueLock(oLock);
         m_bReceivingEnabled = true;
     }
@@ -76,7 +76,7 @@ void cUDPReceiver::stopReceiving()
 {
     cout << "cUDPReceiver::stopReceiving()" << endl;
 
-    boost::upgrade_lock<boost::shared_mutex>  oLock(m_bFlagMutex);
+    boost::upgrade_lock<boost::shared_mutex>  oLock(m_oFlagMutex);
     boost::upgrade_to_unique_lock<boost::shared_mutex>  oUniqueLock(oLock);
     m_bReceivingEnabled = false;
 }
@@ -86,7 +86,7 @@ void cUDPReceiver::startCallbackOffloading()
     cout << "cUDPReceiver::startCallbackOffloading()" << endl;
 
     {
-        boost::upgrade_lock<boost::shared_mutex>  oLock(m_bFlagMutex);
+        boost::upgrade_lock<boost::shared_mutex>  oLock(m_oFlagMutex);
         boost::upgrade_to_unique_lock<boost::shared_mutex>  oUniqueLock(oLock);
         m_bCallbackOffloadingEnabled = true;
     }
@@ -102,33 +102,33 @@ void cUDPReceiver::stopCallbackOffloading()
 {
     cout << "cUDPReceiver::stopCallbackOffloading()" << endl;
 
-    boost::upgrade_lock<boost::shared_mutex>  oLock(m_bFlagMutex);
+    boost::upgrade_lock<boost::shared_mutex>  oLock(m_oFlagMutex);
     boost::upgrade_to_unique_lock<boost::shared_mutex>  oUniqueLock(oLock);
     m_bCallbackOffloadingEnabled = false;
 }
 
 bool  cUDPReceiver::isReceivingEnabled()
 {
-    boost::shared_lock<boost::shared_mutex>  oLock(m_bFlagMutex);
+    boost::shared_lock<boost::shared_mutex>  oLock(m_oFlagMutex);
     return m_bReceivingEnabled;
 }
 
 bool  cUDPReceiver::isCallbackOffloadingEnabled()
 {
-    boost::shared_lock<boost::shared_mutex>  oLock(m_bFlagMutex);
+    boost::shared_lock<boost::shared_mutex>  oLock(m_oFlagMutex);
     return m_bCallbackOffloadingEnabled;
 }
 
 void cUDPReceiver::shutdown()
 {
-    boost::upgrade_lock<boost::shared_mutex>  oLock(m_bFlagMutex);
+    boost::upgrade_lock<boost::shared_mutex>  oLock(m_oFlagMutex);
     boost::upgrade_to_unique_lock<boost::shared_mutex>  oUniqueLock(oLock);
     m_bShutdownFlag = true;
 }
 
 bool cUDPReceiver::isShutdownRequested()
 {
-    boost::shared_lock<boost::shared_mutex>  oLock(m_bFlagMutex);
+    boost::shared_lock<boost::shared_mutex>  oLock(m_oFlagMutex);
     return m_bShutdownFlag;
 }
 
@@ -137,7 +137,7 @@ void cUDPReceiver::socketReceivingThreadFunction()
     cout << "Entered cUDPReceiver::socketReceivingThreadFunction()" << endl;
 
     //First attempt to bind socket
-    
+
     //m_oUDPSocket.openBindAndConnect(m_strLocalInterface, m_u16LocalPort, m_strPeerAddress, m_u16PeerPort);
     while(!m_oUDPSocket.openAndBind(m_strLocalInterface, m_u16LocalPort))
     {
@@ -310,19 +310,14 @@ void cUDPReceiver::dataOffloadingThreadFunction()
             }
         }
 
-        for(uint32_t ui = 0; ui < m_vpCallbackHandlers.size(); ui++)
         {
-            if(m_vpCallbackHandlers[ui])
+            boost::upgrade_lock<boost::shared_mutex> oLock(m_oCallbackHandlersMutex);
+
+            for(uint32_t ui = 0; ui < m_vpCallbackHandlers.size(); ui++)
             {
                 m_vpCallbackHandlers[ui]->offloadData_callback(m_oBuffer.getElementDataPointer(i32Index), m_oBuffer.getElementPointer(i32Index)->allocationSize());
             }
-            else
-            {
-                //Remove the element if the pointer is null
-                m_vpCallbackHandlers.erase(m_vpCallbackHandlers.begin() + ui);
-                ui--;
-            }
-        }
+        }       
 
         m_oBuffer.elementRead(); //Signal to pop element off FIFO
     }
@@ -332,15 +327,37 @@ void cUDPReceiver::dataOffloadingThreadFunction()
 
 void cUDPReceiver::registerCallbackHandler(boost::shared_ptr<cUDPReceiverCallbackInterface> pNewHandler)
 {
+    boost::upgrade_lock<boost::shared_mutex> oLock(m_oCallbackHandlersMutex);
+
     m_vpCallbackHandlers.push_back(pNewHandler);
+
+    cout << "cUDPReceiver::registerCallbackHandler(): Successfully registered callback handler: " << pNewHandler.get() << endl;
 }
 
 void cUDPReceiver::deregisterCallbackHandler(boost::shared_ptr<cUDPReceiverCallbackInterface> pHandler)
 {
+    boost::upgrade_lock<boost::shared_mutex> oLock(m_oCallbackHandlersMutex);
+    bool bSuccess = false;
+
     //Search for matching pointer values and erase
-    for(uint32_t ui = 0; ui < m_vpCallbackHandlers.size(); ui++)
+    for(uint32_t ui = 0; ui < m_vpCallbackHandlers.size();)
     {
         if(m_vpCallbackHandlers[ui].get() == pHandler.get())
+        {
             m_vpCallbackHandlers.erase(m_vpCallbackHandlers.begin() + ui);
+
+            cout << "cUDPReceiver::deregisterCallbackHandler(): Successfully deregistered callback handler: " << pHandler.get() << endl;
+            bSuccess = true;
+        }
+        else
+        {
+            ui++;
+        }
+    }
+
+    if(!bSuccess)
+    {
+        cout << "cUDPReceiver::deregisterCallbackHandler(): Warning: Deregistering callback handler: " << pHandler.get() << " failed. Object instance not found." << endl;
     }
 }
+

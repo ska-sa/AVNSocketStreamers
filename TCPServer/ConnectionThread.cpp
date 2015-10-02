@@ -11,11 +11,18 @@ using namespace std;
 
 cConnectionThread::cConnectionThread(boost::shared_ptr<cInterruptibleBlockingTCPSocket> pClientSocket) :
     m_bIsValid(true),
+    m_bShutdownFlag(false),
     m_oBuffer(64, 1040 * 16) //16 packets of 1040 bytes for each complex uint32_t FFT window of 2 channels or or I,Q,U,V uint32_t stokes parameters.
 {
-    m_pClientSocket.swap(pClientSocket);
+    m_pSocket.swap(pClientSocket);
 
-    cout << "Got new connection from host: " << m_pClientSocket->getRemoteAddress() << endl;
+    m_strPeerAddress = m_pSocket->getPeerAddress();
+    cout << "cConnectionThread::cConnectionThread(): Got new connection from host: " << getPeerAddress();
+
+    if(getSocketName().length())
+        cout << ". Socket name is \"" << getSocketName() << "\"";
+
+    cout << endl;
 
     m_pSocketWritingThread.reset(new boost::thread(&cConnectionThread::socketWritingThreadFunction, this));
 }
@@ -25,7 +32,7 @@ cConnectionThread::~cConnectionThread()
     setInvalid();
     shutdown();
 
-    m_pClientSocket->close();
+    m_pSocket->close();
 
     if(m_pSocketWritingThread.get())
     {
@@ -104,7 +111,7 @@ void cConnectionThread::blockingAddDataToSend(char* cpData, uint32_t u32Size_B)
         //Also check for shutdown flag
         if(isShutdownRequested())
         {
-            cout << "Exiting blockingAddDataToSend() on detection of shutdown flag." << endl;
+            cout << "cConnectionThread::blockingAddDataToSend() exiting on detection of shutdown flag." << endl;
             return;
         }
     }
@@ -112,7 +119,7 @@ void cConnectionThread::blockingAddDataToSend(char* cpData, uint32_t u32Size_B)
     //Check that our buffer is large enough
     if(u32Size_B > m_oBuffer.getElementPointer(i32Index)->allocationSize())
     {
-        cout << "Warning: Input buffer element size is too small for UDP packet." << endl;
+        cout << "cConnectionThread::blockingAddDataToSend(): Warning: Input buffer element size is too small for UDP packet." << endl;
         cout << "Resizing to " << u32Size_B << " bytes" << endl;
 
         m_oBuffer.resize(m_oBuffer.getNElements(), u32Size_B);
@@ -150,7 +157,13 @@ void cConnectionThread::socketWritingThreadFunction()
             //Also check for shutdown flag
             if(isShutdownRequested())
             {
-                cout << "Aborting reading next packet from UDPReceiver." << endl;
+                cout << "cConnectionThread::socketWritingThreadFunction(): Shutdown requested, aborting writing next packet to peer " << m_strPeerAddress;
+                
+                if(getSocketName().length())
+                    cout << " (" << getSocketName() << ")";
+                
+                cout << endl;
+
                 return;
             }
         }
@@ -158,19 +171,42 @@ void cConnectionThread::socketWritingThreadFunction()
         u32BytesTransferred = 0;
         while(u32BytesToTransfer)
         {
-            bSuccess = m_pClientSocket->send(m_oBuffer.getElementDataPointer(i32Index) + u32BytesTransferred, u32BytesToTransfer);
+            bSuccess = m_pSocket->send(m_oBuffer.getElementDataPointer(i32Index) + u32BytesTransferred, u32BytesToTransfer);
 
             if(!bSuccess)
                 break;
 
-            u32BytesToTransfer -= m_pClientSocket->getNBytesLastTransferred();
-            u32BytesTransferred += m_pClientSocket->getNBytesLastTransferred();
+            u32BytesToTransfer -= m_pSocket->getNBytesLastTransferred();
+            u32BytesTransferred += m_pSocket->getNBytesLastTransferred();
         }
 
         if(!bSuccess)
-            continue; //If the sending failed trying again from the beginning.
+        {   
+            cout << "cConnectionThread::socketWritingThreadFunction(): Write failed to peer " << m_strPeerAddress << ". Error was: " << m_pSocket->getLastError() << endl;
+            if(m_pSocket->getLastError())
+            {
+                //Mark connection as failed and stop sending data
+                setInvalid();
+                return;
+            }
+            else
+            {
+                continue; //Otherwise the sending fail for other reasons e.g. timeout, try again from the beginning.
+            }
+        }
 
 
         m_oBuffer.elementRead(); //Otherwise write is complete. Signal to pop element off FIFO
+        //cout << "cConnectionThread::socketWritingThreadFunction(): Wrote data to client " << getPeerAddress() << endl;
     }
+}
+
+string cConnectionThread::getPeerAddress()
+{
+    return m_strPeerAddress; 
+}
+
+string cConnectionThread::getSocketName()
+{
+    return m_pSocket->getName();
 }

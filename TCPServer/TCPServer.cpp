@@ -1,5 +1,6 @@
 
 //System includes
+#include <sstream>
 
 //Library include:
 #ifndef Q_MOC_RUN //Qt's MOC and Boost have some issues don't let MOC process boost headers
@@ -51,6 +52,8 @@ bool cTCPServer::isShutdownRequested()
 
 void cTCPServer::socketListeningThreadFunction()
 {
+    uint32_t u32ConnectionNumber = 0;
+
     while(!isShutdownRequested())
     {
         //If the listening socket exists already close it
@@ -74,18 +77,24 @@ void cTCPServer::socketListeningThreadFunction()
         }
     }
 
+    cout << "cTCPServer::socketListeningThreadFunction(): Listening for TCP connections on " << m_strInterface << ":" << m_u16Port << endl;
+
     while(!isShutdownRequested())
     {
         cout << "Listening for client connections..." << endl;
 
-        boost::shared_ptr<cInterruptibleBlockingTCPSocket> pClientSocket = boost::make_shared<cInterruptibleBlockingTCPSocket>(); //A socket object to store the incoming connection
+        std::stringstream oSS;
+        oSS << "Connection ";
+        oSS << u32ConnectionNumber++;
+            
+        boost::shared_ptr<cInterruptibleBlockingTCPSocket> pClientSocket = boost::make_shared<cInterruptibleBlockingTCPSocket>(oSS.str()); //A socket object to store the incoming connection
         try
         {
             string strPeerAddress;
             m_oTCPAcceptor.accept(pClientSocket, strPeerAddress); //Accept connection from a client.
 
             m_vpConnectionThreads.push_back(boost::make_shared<cConnectionThread>(pClientSocket));
-            cout << "There are now " << m_vpConnectionThreads.size() << " clients connected." << endl;
+            cout << "There are now " << m_vpConnectionThreads.size() << " client(s) connected." << endl;
         }
         catch(boost::system::system_error const &oSystemError)
         {
@@ -107,7 +116,30 @@ bool cTCPServer::writeData(char* cpData, uint32_t u32Size_B)
 
     for(uint32_t ui = 0; ui < m_vpConnectionThreads.size(); ui++)
     {
-        m_vpConnectionThreads[ui]->tryAddDataToSend(cpData, u32Size_B);
+        //Send only to valid connections
+        if(m_vpConnectionThreads[ui]->isValid())
+            m_vpConnectionThreads[ui]->tryAddDataToSend(cpData, u32Size_B);
+    }
+
+    //Clean up any invalid connections
+    for(uint32_t ui = 0; ui < m_vpConnectionThreads.size();)
+    {
+        if(!m_vpConnectionThreads[ui]->isValid())
+        {
+            cout << "cTCPServer::writeData(): Closing connection to client " << m_vpConnectionThreads[ui]->getPeerAddress();
+            if(m_vpConnectionThreads[ui]->getSocketName().length())
+                cout << " (" << m_vpConnectionThreads[ui]->getSocketName() << ")";
+            
+            cout << endl;
+
+            m_vpConnectionThreads.erase(m_vpConnectionThreads.begin() + ui);
+
+            cout << "cTCPServer::writeData(): There are now " << m_vpConnectionThreads.size() << " client(s) connected." << endl;
+        }
+        else
+        {
+            ui++;
+        }
     }
 }
 
