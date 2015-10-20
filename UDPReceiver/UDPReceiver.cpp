@@ -24,8 +24,8 @@ void cUDPReceiver::socketReceivingThreadFunction()
 {
     cout << "Entered cUDPReceiver::socketReceivingThreadFunction()" << endl;
 
-    //First, attempt to bind socket
-    
+    //First attempt to bind socket
+
     //m_oUDPSocket.openBindAndConnect(m_strLocalInterface, m_u16LocalPort, m_strPeerAddress, m_u16PeerPort);
     while(!m_oUDPSocket.openAndBind(m_strLocalInterface, m_u16LocalPort))
     {

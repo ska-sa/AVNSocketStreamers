@@ -43,25 +43,25 @@ public:
     explicit cSocketReceiverBase(const std::string &strPeerAddress, uint16_t usPeerPort = 60001);
     virtual ~cSocketReceiverBase();
 
-    void                                                            startReceiving();
-    void                                                            stopReceiving();
+    void                                                                    startReceiving();
+    void                                                                    stopReceiving();
 
-    void                                                            startCallbackOffloading();
-    void                                                            stopCallbackOffloading();
+    void                                                                    startCallbackOffloading();
+    void                                                                    stopCallbackOffloading();
 
-    bool                                                            isReceivingEnabled();
-    bool                                                            isCallbackOffloadingEnabled();
+    bool                                                                    isReceivingEnabled();
+    bool                                                                    isCallbackOffloadingEnabled();
 
-    void                                                            shutdown();
-    bool                                                            isShutdownRequested();
+    void                                                                    shutdown();
+    bool                                                                    isShutdownRequested();
 
-    void                                                            clearBuffer();
+    void                                                                    clearBuffer();
 
     int32_t getNextPacketSize_B(uint32_t u32Timeout_ms = 0);
-    bool                                                            getNextPacket(char *cpData, uint32_t u32Timeout_ms = 0, bool bPopData = true);
+    bool                                                                    getNextPacket(char *cpData, uint32_t u32Timeout_ms = 0, bool bPopData = true);
 
-    void                                                            registerCallbackHandler(boost::shared_ptr<cSocketReceiverBaseCallbackInterface> pNewHandler);
-    void                                                            deregisterCallbackHandler(boost::shared_ptr<cSocketReceiverBaseCallbackInterface> pHandler);
+    void                                                                    registerCallbackHandler(boost::shared_ptr<cSocketReceiverBaseCallbackInterface> pNewHandler);
+    void                                                                    deregisterCallbackHandler(boost::shared_ptr<cSocketReceiverBaseCallbackInterface> pHandler);
 
 protected:
     std::string                                                             m_strPeerAddress;
@@ -70,7 +70,7 @@ protected:
     bool                                                                    m_bReceivingEnabled;
     bool                                                                    m_bCallbackOffloadingEnabled;
     bool                                                                    m_bShutdownFlag;
-    boost::shared_mutex                                                     m_bFlagMutex;
+    boost::shared_mutex                                                     m_oFlagMutex;
     boost::shared_mutex                                                     m_oCallbackHandlersMutex;
 
     //Callback handlers

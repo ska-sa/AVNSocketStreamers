@@ -56,7 +56,7 @@ void cSocketReceiverBase::startReceiving()
     u64TotalBytesProcessed = 0;
 
     {
-        boost::upgrade_lock<boost::shared_mutex>  oLock(m_bFlagMutex);
+        boost::upgrade_lock<boost::shared_mutex>  oLock(m_oFlagMutex);
         boost::upgrade_to_unique_lock<boost::shared_mutex>  oUniqueLock(oLock);
         m_bReceivingEnabled = true;
     }
@@ -72,7 +72,7 @@ void cSocketReceiverBase::stopReceiving()
 {
     cout << "cSocketReceiverBase::stopReceiving()" << endl;
 
-    boost::upgrade_lock<boost::shared_mutex>  oLock(m_bFlagMutex);
+    boost::upgrade_lock<boost::shared_mutex>  oLock(m_oFlagMutex);
     boost::upgrade_to_unique_lock<boost::shared_mutex>  oUniqueLock(oLock);
     m_bReceivingEnabled = false;
 }
@@ -82,7 +82,7 @@ void cSocketReceiverBase::startCallbackOffloading()
     cout << "cSocketReceiverBase::startCallbackOffloading()" << endl;
 
     {
-        boost::upgrade_lock<boost::shared_mutex>  oLock(m_bFlagMutex);
+        boost::upgrade_lock<boost::shared_mutex>  oLock(m_oFlagMutex);
         boost::upgrade_to_unique_lock<boost::shared_mutex>  oUniqueLock(oLock);
         m_bCallbackOffloadingEnabled = true;
     }
@@ -98,33 +98,33 @@ void cSocketReceiverBase::stopCallbackOffloading()
 {
     cout << "cSocketReceiverBase::stopCallbackOffloading()" << endl;
 
-    boost::upgrade_lock<boost::shared_mutex>  oLock(m_bFlagMutex);
+    boost::upgrade_lock<boost::shared_mutex>  oLock(m_oFlagMutex);
     boost::upgrade_to_unique_lock<boost::shared_mutex>  oUniqueLock(oLock);
     m_bCallbackOffloadingEnabled = false;
 }
 
 bool  cSocketReceiverBase::isReceivingEnabled()
 {
-    boost::shared_lock<boost::shared_mutex>  oLock(m_bFlagMutex);
+    boost::shared_lock<boost::shared_mutex>  oLock(m_oFlagMutex);
     return m_bReceivingEnabled;
 }
 
 bool  cSocketReceiverBase::isCallbackOffloadingEnabled()
 {
-    boost::shared_lock<boost::shared_mutex>  oLock(m_bFlagMutex);
+    boost::shared_lock<boost::shared_mutex>  oLock(m_oFlagMutex);
     return m_bCallbackOffloadingEnabled;
 }
 
 void cSocketReceiverBase::shutdown()
 {
-    boost::upgrade_lock<boost::shared_mutex>  oLock(m_bFlagMutex);
+    boost::upgrade_lock<boost::shared_mutex>  oLock(m_oFlagMutex);
     boost::upgrade_to_unique_lock<boost::shared_mutex>  oUniqueLock(oLock);
     m_bShutdownFlag = true;
 }
 
 bool cSocketReceiverBase::isShutdownRequested()
 {
-    boost::shared_lock<boost::shared_mutex>  oLock(m_bFlagMutex);
+    boost::shared_lock<boost::shared_mutex>  oLock(m_oFlagMutex);
     return m_bShutdownFlag;
 }
 
