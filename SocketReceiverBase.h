@@ -44,7 +44,7 @@ public:
     virtual ~cSocketReceiverBase();
 
     void                                                                    startReceiving();
-    void                                                                    stopReceiving();
+    virtual void                                                            stopReceiving();
 
     void                                                                    startCallbackOffloading();
     void                                                                    stopCallbackOffloading();
@@ -80,7 +80,7 @@ protected:
     boost::scoped_ptr<boost::thread>                                        m_pSocketReceivingThread;
     boost::scoped_ptr<boost::thread>                                        m_pDataOffloadingThread;
 
-    //Class will need some sort of socket ---
+    //Derived class will need some sort of socket here.
 
     //Thread functions
     virtual void                                                            socketReceivingThreadFunction() = 0; //Implement socket receiving here

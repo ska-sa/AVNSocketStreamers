@@ -13,6 +13,9 @@ class cTCPReceiver : public cSocketReceiverBase
 {
 public:
     explicit cTCPReceiver(const std::string &strPeerAddress, uint16_t usPeerPort = 60001);
+    virtual ~cTCPReceiver();
+
+    virtual void                    stopReceiving();
 
 protected:
     //TCP Socket
@@ -20,6 +23,7 @@ protected:
 
     //Thread functions
     virtual void                    socketReceivingThreadFunction();
+
 };
 
 #endif // TCP_RECEIVER_H

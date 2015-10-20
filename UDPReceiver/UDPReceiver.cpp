@@ -5,6 +5,7 @@
 //Library includes
 #ifndef Q_MOC_RUN //Qt's MOC and Boost have some issues don't let MOC process boost headers
 #include <boost/asio/buffer.hpp>
+#include <boost/date_time/posix_time/posix_time.hpp>
 #endif
 
 //Local includes
@@ -14,10 +15,15 @@ using namespace std;
 
 cUDPReceiver::cUDPReceiver(const string &strLocalInterface, uint16_t u16LocalPort, const string &strPeerAddress, uint16_t u16PeerPort) :
     cSocketReceiverBase(strPeerAddress, u16PeerPort),
-    m_oUDPSocket(string("UDP socket")),
+    m_oSocket(string("UDP socket")),
     m_strLocalInterface(strLocalInterface),
     m_u16LocalPort(u16LocalPort)
 {
+}
+
+cUDPReceiver::~cUDPReceiver()
+{
+    m_oSocket.cancelCurrrentOperations();
 }
 
 void cUDPReceiver::socketReceivingThreadFunction()
@@ -27,7 +33,7 @@ void cUDPReceiver::socketReceivingThreadFunction()
     //First attempt to bind socket
 
     //m_oUDPSocket.openBindAndConnect(m_strLocalInterface, m_u16LocalPort, m_strPeerAddress, m_u16PeerPort);
-    while(!m_oUDPSocket.openAndBind(m_strLocalInterface, m_u16LocalPort))
+    while(!m_oSocket.openAndBind(m_strLocalInterface, m_u16LocalPort))
     {
         if(isShutdownRequested() || !isReceivingEnabled())
         {
@@ -68,7 +74,7 @@ void cUDPReceiver::socketReceivingThreadFunction()
         }
 
         //Check that our buffer is large enough
-        uint32_t u32UDPBytesAvailable = m_oUDPSocket.getBytesAvailable();
+        uint32_t u32UDPBytesAvailable = m_oSocket.getBytesAvailable();
         if(u32UDPBytesAvailable > m_oBuffer.getElementPointer(i32Index)->allocationSize())
         {
             cout << "cUDPReceiver::socketReceivingThread(): Warning: Input buffer element size is too small for UDP packet." << endl;
@@ -85,13 +91,13 @@ void cUDPReceiver::socketReceivingThreadFunction()
             string strSender;
             uint16_t u16Port;
             //if(!m_oUDPSocket.receive(m_oBuffer.getElementDataPointer(i32Index) + m_oBuffer.getElementPointer(i32Index)->dataSize(), i32BytesLeftToRead) )
-            if(!m_oUDPSocket.receiveFrom(m_oBuffer.getElementDataPointer(i32Index) + m_oBuffer.getElementPointer(i32Index)->dataSize(), i32BytesLeftToRead, strSender, u16Port) )
+            if(!m_oSocket.receiveFrom(m_oBuffer.getElementDataPointer(i32Index) + m_oBuffer.getElementPointer(i32Index)->dataSize(), i32BytesLeftToRead, strSender, u16Port) )
             {
-                cout << "cUDPReceiver::socketReceivingThread(): Warning socket error: " << m_oUDPSocket.getLastError().message() << endl;
+                cout << "cUDPReceiver::socketReceivingThread(): Warning socket error: " << m_oSocket.getLastError().message() << endl;
             }
             else
             {
-                i32BytesLastRead = m_oUDPSocket.getNBytesLastTransferred();
+                i32BytesLastRead = m_oSocket.getNBytesLastTransferred();
             }
 
             u32PacketsReceived++;
@@ -115,4 +121,12 @@ void cUDPReceiver::socketReceivingThreadFunction()
     cout << "cUDPReceiver::socketReceivingThread(): Exiting receiving thread." << endl;
     cout << "---- Received " << u32PacketsReceived << " packets ----" << endl;
     fflush(stdout);
+}
+
+void cUDPReceiver::stopReceiving()
+{
+    cSocketReceiverBase::stopReceiving();
+
+    //Also interrupt the socket which exists only in this derived implmentation
+    m_oSocket.cancelCurrrentOperations();
 }

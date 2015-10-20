@@ -19,6 +19,10 @@ cTCPReceiver::cTCPReceiver(const string &strPeerAddress, uint16_t u16PeerPort) :
 {
 }
 
+cTCPReceiver::~cTCPReceiver()
+{
+    stopReceiving();
+}
 
 void cTCPReceiver::socketReceivingThreadFunction()
 {
@@ -99,4 +103,12 @@ void cTCPReceiver::socketReceivingThreadFunction()
     cout << "cTCPReceiver::socketReceivingThread(): Exiting receiving thread." << endl;
     cout << "---- Received " << u32PacketsReceived << " packets ----" << endl;
     fflush(stdout);
+}
+
+void  cTCPReceiver::stopReceiving()
+{
+    cSocketReceiverBase::stopReceiving();
+
+    //Also interrupt the socket which exists only in this derived implmentation
+    m_oSocket.cancelCurrrentOperations();
 }

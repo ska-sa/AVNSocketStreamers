@@ -13,10 +13,13 @@ class cUDPReceiver  : public cSocketReceiverBase
 {
 public:
     explicit cUDPReceiver(const std::string &strLocalInterface, uint16_t u16LocalPort = 60000, const std::string &strPeerAddress = std::string(""), uint16_t usPeerPort = 60001);
+    virtual ~cUDPReceiver();
+
+    virtual void                    stopReceiving();
 
 protected:
     //Socket
-    cInterruptibleBlockingUDPSocket m_oUDPSocket;
+    cInterruptibleBlockingUDPSocket m_oSocket;
 
     std::string                     m_strLocalInterface;
     uint16_t                        m_u16LocalPort;

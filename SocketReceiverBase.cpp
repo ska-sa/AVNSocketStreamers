@@ -33,6 +33,8 @@ cSocketReceiverBase::~cSocketReceiverBase()
 
     shutdown();
 
+
+
     if(m_pSocketReceivingThread.get())
     {
         m_pSocketReceivingThread->join();
@@ -96,6 +98,8 @@ void cSocketReceiverBase::startCallbackOffloading()
 
 void cSocketReceiverBase::stopCallbackOffloading()
 {
+    //Thread safe flag mutator
+
     cout << "cSocketReceiverBase::stopCallbackOffloading()" << endl;
 
     boost::upgrade_lock<boost::shared_mutex>  oLock(m_oFlagMutex);
@@ -105,18 +109,24 @@ void cSocketReceiverBase::stopCallbackOffloading()
 
 bool  cSocketReceiverBase::isReceivingEnabled()
 {
+    //Thread safe accessor
+
     boost::shared_lock<boost::shared_mutex>  oLock(m_oFlagMutex);
     return m_bReceivingEnabled;
 }
 
 bool  cSocketReceiverBase::isCallbackOffloadingEnabled()
 {
+    //Thread safe accessor
+
     boost::shared_lock<boost::shared_mutex>  oLock(m_oFlagMutex);
     return m_bCallbackOffloadingEnabled;
 }
 
 void cSocketReceiverBase::shutdown()
 {
+    //Thread safe flag mutator
+
     boost::upgrade_lock<boost::shared_mutex>  oLock(m_oFlagMutex);
     boost::upgrade_to_unique_lock<boost::shared_mutex>  oUniqueLock(oLock);
     m_bShutdownFlag = true;
@@ -124,6 +134,8 @@ void cSocketReceiverBase::shutdown()
 
 bool cSocketReceiverBase::isShutdownRequested()
 {
+    //Thread safe accessor
+
     boost::shared_lock<boost::shared_mutex>  oLock(m_oFlagMutex);
     return m_bShutdownFlag;
 }
@@ -131,7 +143,7 @@ bool cSocketReceiverBase::isShutdownRequested()
 int32_t cSocketReceiverBase::getNextPacketSize_B(uint32_t u32Timeout_ms)
 {
     //Get (or wait for) the next available element to read data from
-    //If waiting timeout every 500 ms and check for shutdown or stop streaming flags
+    //If waiting, timeout every 500 ms and check for shutdown or stop streaming flags
     //This prevents the program locking up in this thread.
 
     //Current time:
