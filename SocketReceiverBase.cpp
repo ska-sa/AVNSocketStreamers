@@ -247,7 +247,7 @@ void cSocketReceiverBase::dataOffloadingThreadFunction()
         }
 
         {
-            boost::upgrade_lock<boost::shared_mutex> oLock(m_oCallbackHandlersMutex);
+            boost::unique_lock<boost::shared_mutex> oLock(m_oCallbackHandlersMutex);
 
             for(uint32_t ui = 0; ui < m_vpCallbackHandlers.size(); ui++)
             {
@@ -261,18 +261,18 @@ void cSocketReceiverBase::dataOffloadingThreadFunction()
     cout << "Exiting cSocketReceiverBase::dataOffloadingThreadFunction()." << endl;
 }
 
-void cSocketReceiverBase::registerCallbackHandler(boost::shared_ptr<cSocketReceiverBaseCallbackInterface> pNewHandler)
+void cSocketReceiverBase::registerCallbackHandler(boost::shared_ptr<cCallbackInterface> pNewHandler)
 {
-    boost::upgrade_lock<boost::shared_mutex> oLock(m_oCallbackHandlersMutex);
+    boost::unique_lock<boost::shared_mutex> oLock(m_oCallbackHandlersMutex);
 
     m_vpCallbackHandlers.push_back(pNewHandler);
 
     cout << "cUDPReceiver::registerCallbackHandler(): Successfully registered callback handler: " << pNewHandler.get() << endl;
 }
 
-void cSocketReceiverBase::deregisterCallbackHandler(boost::shared_ptr<cSocketReceiverBaseCallbackInterface> pHandler)
+void cSocketReceiverBase::deregisterCallbackHandler(boost::shared_ptr<cCallbackInterface> pHandler)
 {
-    boost::upgrade_lock<boost::shared_mutex> oLock(m_oCallbackHandlersMutex);
+    boost::unique_lock<boost::shared_mutex> oLock(m_oCallbackHandlersMutex);
     bool bSuccess = false;
 
     //Search for matching pointer values and erase

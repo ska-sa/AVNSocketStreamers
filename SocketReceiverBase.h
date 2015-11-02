@@ -33,10 +33,10 @@ typedef unsigned __int64 uint64_t;
 class cSocketReceiverBase
 {
 public:
-    class cSocketReceiverBaseCallbackInterface
+    class cCallbackInterface
     {
     public:
-        virtual bool offloadData_callback(char* pData, uint32_t u32Size_B) = 0;
+        virtual void offloadData_callback(char* pData, uint32_t u32Size_B) = 0;
     };
 
 
@@ -60,8 +60,8 @@ public:
     int32_t getNextPacketSize_B(uint32_t u32Timeout_ms = 0);
     bool                                                                    getNextPacket(char *cpData, uint32_t u32Timeout_ms = 0, bool bPopData = true);
 
-    void                                                                    registerCallbackHandler(boost::shared_ptr<cSocketReceiverBaseCallbackInterface> pNewHandler);
-    void                                                                    deregisterCallbackHandler(boost::shared_ptr<cSocketReceiverBaseCallbackInterface> pHandler);
+    void                                                                    registerCallbackHandler(boost::shared_ptr<cCallbackInterface> pNewHandler);
+    void                                                                    deregisterCallbackHandler(boost::shared_ptr<cCallbackInterface> pHandler);
 
 protected:
     std::string                                                             m_strPeerAddress;
@@ -74,7 +74,7 @@ protected:
     boost::shared_mutex                                                     m_oCallbackHandlersMutex;
 
     //Callback handlers
-    std::vector<boost::shared_ptr<cSocketReceiverBaseCallbackInterface> >   m_vpCallbackHandlers;
+    std::vector<boost::shared_ptr<cCallbackInterface> >                     m_vpCallbackHandlers;
 
     //Threads
     boost::scoped_ptr<boost::thread>                                        m_pSocketReceivingThread;

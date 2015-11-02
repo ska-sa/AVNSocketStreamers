@@ -86,14 +86,16 @@ void cTCPServer::socketListeningThreadFunction()
         std::stringstream oSS;
         oSS << "Connection ";
         oSS << u32ConnectionNumber++;
-            
+
         boost::shared_ptr<cInterruptibleBlockingTCPSocket> pClientSocket = boost::make_shared<cInterruptibleBlockingTCPSocket>(oSS.str()); //A socket object to store the incoming connection
         try
         {
             string strPeerAddress;
             m_oTCPAcceptor.accept(pClientSocket, strPeerAddress); //Accept connection from a client.
 
+            boost::unique_lock<boost::shared_mutex> oLock(m_oConnectThreadsMutex);
             m_vpConnectionThreads.push_back(boost::make_shared<cConnectionThread>(pClientSocket));
+
             cout << "There are now " << m_vpConnectionThreads.size() << " client(s) connected." << endl;
         }
         catch(boost::system::system_error const &oSystemError)
@@ -112,7 +114,7 @@ void cTCPServer::socketListeningThreadFunction()
 
 bool cTCPServer::writeData(char* cpData, uint32_t u32Size_B)
 {
-    boost::shared_lock<boost::shared_mutex> oLock(m_oConnectThreadsMutex);
+    boost::upgrade_lock<boost::shared_mutex> oLock(m_oConnectThreadsMutex);
 
     for(uint32_t ui = 0; ui < m_vpConnectionThreads.size(); ui++)
     {
@@ -132,7 +134,10 @@ bool cTCPServer::writeData(char* cpData, uint32_t u32Size_B)
             
             cout << endl;
 
-            m_vpConnectionThreads.erase(m_vpConnectionThreads.begin() + ui);
+            {
+                boost::upgrade_to_unique_lock< boost::shared_mutex > uniqueLock(oLock);
+                m_vpConnectionThreads.erase(m_vpConnectionThreads.begin() + ui);
+            }
 
             cout << "cTCPServer::writeData(): There are now " << m_vpConnectionThreads.size() << " client(s) connected." << endl;
         }

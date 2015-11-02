@@ -57,7 +57,7 @@ protected:
     std::vector<boost::shared_ptr<cConnectionThread> >  m_vpConnectionThreads;
     boost::shared_mutex                                 m_oConnectThreadsMutex;
 
-    void socketListeningThreadFunction();
+    void                                                socketListeningThreadFunction();
 
     boost::scoped_ptr<boost::thread>                    m_pSocketListeningThread;
 };

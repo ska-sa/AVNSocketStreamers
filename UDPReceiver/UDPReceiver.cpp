@@ -19,6 +19,7 @@ cUDPReceiver::cUDPReceiver(const string &strLocalInterface, uint16_t u16LocalPor
     m_strLocalInterface(strLocalInterface),
     m_u16LocalPort(u16LocalPort)
 {
+    m_oBuffer.resize(128, 1040 * 16); //16 packets of 1040 bytes for each complex uint32_t FFT window of 2 channels or or I,Q,U,V uint32_t stokes parameters
 }
 
 cUDPReceiver::~cUDPReceiver()
