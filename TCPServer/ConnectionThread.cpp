@@ -10,9 +10,9 @@
 using namespace std;
 
 cConnectionThread::cConnectionThread(boost::shared_ptr<cInterruptibleBlockingTCPSocket> pClientSocket) :
-    m_bIsValid(true),
     m_bShutdownFlag(false),
-    m_oBuffer(64, 1040 * 16) //16 packets of 1040 bytes for each complex uint32_t FFT window of 2 channels or or I,Q,U,V uint32_t stokes parameters.
+    m_bIsValid(true),
+    m_oBuffer(512, 1040) //16 packets of 1040 bytes for each complex uint32_t FFT window of 2 channels or or I,Q,U,V uint32_t stokes parameters.
 {
     m_pSocket.swap(pClientSocket);
 
@@ -88,14 +88,13 @@ bool cConnectionThread::tryAddDataToSend(char* cpData, uint32_t u32Size_B)
         m_oBuffer.resize(m_oBuffer.getNElements(), u32Size_B);
     }
 
-    //Read as much data as can be fitted in to the buffer (it should be empty at this point)
-    int32_t i32BytesLeftToRead = m_oBuffer.getElementPointer(i32Index)->allocationSize();
-
     memcpy(m_oBuffer.getElementDataPointer(i32Index), cpData, u32Size_B);
     m_oBuffer.getElementPointer(i32Index)->setDataAdded(u32Size_B);
 
     //Signal we have completely filled an element of the input buffer.
     m_oBuffer.elementWritten();
+
+    return true;
 }
 
 void cConnectionThread::blockingAddDataToSend(char* cpData, uint32_t u32Size_B)
@@ -124,9 +123,6 @@ void cConnectionThread::blockingAddDataToSend(char* cpData, uint32_t u32Size_B)
 
         m_oBuffer.resize(m_oBuffer.getNElements(), u32Size_B);
     }
-
-    //Read as much data as can be fitted in to the buffer (it should be empty at this point)
-    int32_t i32BytesLeftToRead = m_oBuffer.getElementPointer(i32Index)->allocationSize();
 
     memcpy(m_oBuffer.getElementDataPointer(i32Index), cpData, u32Size_B);
     m_oBuffer.getElementPointer(i32Index)->setDataAdded(u32Size_B);
@@ -181,7 +177,7 @@ void cConnectionThread::socketWritingThreadFunction()
         }
 
         if(!bSuccess)
-        {   
+        {
             cout << "cConnectionThread::socketWritingThreadFunction(): Write failed to peer " << m_strPeerAddress << ". Error was: " << m_pSocket->getLastError() << endl;
             if(m_pSocket->getLastError())
             {
@@ -203,7 +199,7 @@ void cConnectionThread::socketWritingThreadFunction()
 
 string cConnectionThread::getPeerAddress()
 {
-    return m_strPeerAddress; 
+    return m_strPeerAddress;
 }
 
 string cConnectionThread::getSocketName()

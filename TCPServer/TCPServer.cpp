@@ -13,9 +13,9 @@
 
 cTCPServer::cTCPServer(const std::string &strInterface, uint16_t u16Port, uint32_t u32MaxConnections) :
     m_bShutdownFlag(false),
+    m_u32MaxConnections(u32MaxConnections),
     m_strInterface(strInterface),
-    m_u16Port(u16Port),
-    m_u32MaxConnections(u32MaxConnections)
+    m_u16Port(u16Port)
 {
     m_pSocketListeningThread.reset(new boost::thread(&cTCPServer::socketListeningThreadFunction, this));
 }
@@ -112,7 +112,7 @@ void cTCPServer::socketListeningThreadFunction()
     cout << "cTCPServer::socketListeningThreadFunction(): Returning from thread function." << endl;
 }
 
-bool cTCPServer::writeData(char* cpData, uint32_t u32Size_B)
+void cTCPServer::writeData(char* cpData, uint32_t u32Size_B)
 {
     boost::upgrade_lock<boost::shared_mutex> oLock(m_oConnectThreadsMutex);
 

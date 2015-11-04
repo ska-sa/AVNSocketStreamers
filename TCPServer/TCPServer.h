@@ -39,7 +39,7 @@ public:
     cTCPServer(const std::string &strInterface = std::string("0.0.0.0"), uint16_t usPort = 60001, uint32_t u32MaxConnections = 0);
     virtual ~cTCPServer();
 
-    bool                                                writeData(char* cpData, uint32_t u32Size_B);
+    void writeData(char* cpData, uint32_t u32Size_B);
 
     void                                                shutdown();
     bool                                                isShutdownRequested();
