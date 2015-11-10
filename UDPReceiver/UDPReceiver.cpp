@@ -24,7 +24,9 @@ cUDPReceiver::cUDPReceiver(const string &strLocalInterface, uint16_t u16LocalPor
 
 cUDPReceiver::~cUDPReceiver()
 {
-    m_oSocket.cancelCurrrentOperations();
+    //Base destructor calls shutdown.
+
+    stopReceiving();
 }
 
 void cUDPReceiver::socketReceivingThreadFunction()

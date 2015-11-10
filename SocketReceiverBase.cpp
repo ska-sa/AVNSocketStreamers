@@ -28,22 +28,7 @@ cSocketReceiverBase::cSocketReceiverBase(const string &strPeerAddress, uint16_t 
 
 cSocketReceiverBase::~cSocketReceiverBase()
 {
-    stopReceiving();
-    stopCallbackOffloading();
-
     shutdown();
-
-
-
-    if(m_pSocketReceivingThread.get())
-    {
-        m_pSocketReceivingThread->join();
-    }
-
-    if(m_pDataOffloadingThread.get())
-    {
-        m_pDataOffloadingThread->join();
-    }
 }
 
 void cSocketReceiverBase::clearBuffer()
@@ -130,13 +115,23 @@ void cSocketReceiverBase::shutdown()
     boost::upgrade_lock<boost::shared_mutex>  oLock(m_oFlagMutex);
     boost::upgrade_to_unique_lock<boost::shared_mutex>  oUniqueLock(oLock);
     m_bShutdownFlag = true;
+
+    if(m_pSocketReceivingThread.get())
+    {
+        m_pSocketReceivingThread->join();
+    }
+
+    if(m_pDataOffloadingThread.get())
+    {
+        m_pDataOffloadingThread->join();
+    }
 }
 
 bool cSocketReceiverBase::isShutdownRequested()
 {
     //Thread safe accessor
 
-    boost::shared_lock<boost::shared_mutex>  oLock(m_oFlagMutex);
+    boost::shared_lock<boost::shared_mutex> oLock(m_oFlagMutex);
     return m_bShutdownFlag;
 }
 
