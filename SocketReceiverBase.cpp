@@ -154,12 +154,6 @@ int32_t cSocketReceiverBase::getNextPacketSize_B(uint32_t u32Timeout_ms)
 
         i32Index = m_oBuffer.getNextReadIndex(100);
 
-        //Also check for shutdown flag
-        if(!isReceivingEnabled() || isShutdownRequested())
-        {
-            cout << "cSocketReceiverBase::getNextPacketSize_B(): Got stop flag. Aborting..." << endl;
-            return -1;
-        }
     }
 
     return m_oBuffer.getElementPointer(i32Index)->allocationSize();
@@ -242,9 +236,9 @@ void cSocketReceiverBase::dataOffloadingThreadFunction()
         {
             boost::unique_lock<boost::shared_mutex> oLock(m_oCallbackHandlersMutex);
 
-            for(uint32_t ui = 0; ui < m_vpCallbackHandlers.size(); ui++)
+            for(uint32_t ui = 0; ui < m_vpDataCallbackHandlers.size(); ui++)
             {
-                m_vpCallbackHandlers[ui]->offloadData_callback(m_oBuffer.getElementDataPointer(i32Index), m_oBuffer.getElementPointer(i32Index)->allocationSize());
+                m_vpDataCallbackHandlers[ui]->offloadData_callback(m_oBuffer.getElementDataPointer(i32Index), m_oBuffer.getElementPointer(i32Index)->allocationSize());
             }
         }
 
@@ -254,28 +248,28 @@ void cSocketReceiverBase::dataOffloadingThreadFunction()
     cout << "Exiting cSocketReceiverBase::dataOffloadingThreadFunction()." << endl;
 }
 
-void cSocketReceiverBase::registerCallbackHandler(boost::shared_ptr<cCallbackInterface> pNewHandler)
+void cSocketReceiverBase::registerDataCallbackHandler(boost::shared_ptr<cDataCallbackInterface> pNewHandler)
 {
     boost::unique_lock<boost::shared_mutex> oLock(m_oCallbackHandlersMutex);
 
-    m_vpCallbackHandlers.push_back(pNewHandler);
+    m_vpDataCallbackHandlers.push_back(pNewHandler);
 
-    cout << "cUDPReceiver::registerCallbackHandler(): Successfully registered callback handler: " << pNewHandler.get() << endl;
+    cout << "cSocketReceiverBase::registerDataCallbackHandler(): Successfully registered callback handler: " << pNewHandler.get() << endl;
 }
 
-void cSocketReceiverBase::deregisterCallbackHandler(boost::shared_ptr<cCallbackInterface> pHandler)
+void cSocketReceiverBase::deregisterDataCallbackHandler(boost::shared_ptr<cDataCallbackInterface> pHandler)
 {
     boost::unique_lock<boost::shared_mutex> oLock(m_oCallbackHandlersMutex);
     bool bSuccess = false;
 
     //Search for matching pointer values and erase
-    for(uint32_t ui = 0; ui < m_vpCallbackHandlers.size();)
+    for(uint32_t ui = 0; ui < m_vpDataCallbackHandlers.size();)
     {
-        if(m_vpCallbackHandlers[ui].get() == pHandler.get())
+        if(m_vpDataCallbackHandlers[ui].get() == pHandler.get())
         {
-            m_vpCallbackHandlers.erase(m_vpCallbackHandlers.begin() + ui);
+            m_vpDataCallbackHandlers.erase(m_vpDataCallbackHandlers.begin() + ui);
 
-            cout << "cSocketReceiverBase::deregisterCallbackHandler(): Deregistered callback handler: " << pHandler.get() << endl;
+            cout << "cSocketReceiverBase::deregisterDataCallbackHandler(): Deregistered callback handler: " << pHandler.get() << endl;
             bSuccess = true;
         }
         else
@@ -286,6 +280,6 @@ void cSocketReceiverBase::deregisterCallbackHandler(boost::shared_ptr<cCallbackI
 
     if(!bSuccess)
     {
-        cout << "cSocketReceiverBase::deregisterCallbackHandler(): Warning: Deregistering callback handler: " << pHandler.get() << " failed. Object instance not found." << endl;
+        cout << "cSocketReceiverBase::deregisterDataCallbackHandler(): Warning: Deregistering callback handler: " << pHandler.get() << " failed. Object instance not found." << endl;
     }
 }

@@ -42,10 +42,17 @@ void cTCPReceiver::socketReceivingThreadFunction()
         cout << "cTCPReceiver::socketReceivingThreadFunction(): Retrying socket connection to " << m_strPeerAddress << ":" << m_u16PeerPort << endl;
     }
 
+    //Notify of socket connection
+    {
+        boost::unique_lock<boost::shared_mutex> oLock(m_oCallbackHandlersMutex);
+
+        for(uint32_t ui = 0; ui < m_vpNotificationCallbackHandlers.size(); ui++)
+        {
+            m_vpNotificationCallbackHandlers[ui]->socketConnected_callback();
+        }
+    }
+
     //Enter thread loop, repeated reading into the FIFO
-
-    boost::system::error_code oEC;
-
     uint32_t u32PacketsReceived = 0;
     int32_t i32BytesLastRead;
     int32_t i32BytesLeftToRead;
@@ -77,6 +84,26 @@ void cTCPReceiver::socketReceivingThreadFunction()
             if(!m_oSocket.receive(m_oBuffer.getElementDataPointer(i32Index) + m_oBuffer.getElementPointer(i32Index)->dataSize(), i32BytesLeftToRead) )
             {
                 cout << "cTCPReceiver::socketReceivingThread(): Warning socket error: " << m_oSocket.getLastError().message() << endl;
+                cout << "cTCPReceiver::socketReceivingThread(): Warning socket error value: " << m_oSocket.getLastError().value() << endl;
+
+                //Check for errors from socket disconnection
+                //TODO: This should probably be done with error codes as apposed string matching
+
+                if(m_oSocket.getLastError().message().find("End of file") != string::npos
+                        || m_oSocket.getLastError().message().find("Bad file descriptor") != string::npos )
+                {
+                    boost::unique_lock<boost::shared_mutex> oLock(m_oCallbackHandlersMutex);
+
+                    for(uint32_t ui = 0; ui < m_vpNotificationCallbackHandlers.size(); ui++)
+                    {
+                        m_vpNotificationCallbackHandlers[ui]->socketDisconnected_callback();
+                    }
+
+                    cout << "cTCPReceiver::socketReceivingThread(): socket disconnected." << endl;
+                    stopReceiving();
+                    m_oSocket.close();
+                    break;
+                }
             }
             else
             {
@@ -111,4 +138,40 @@ void  cTCPReceiver::stopReceiving()
 
     //Also interrupt the socket which exists only in this derived implmentation
     m_oSocket.cancelCurrrentOperations();
+}
+
+void cTCPReceiver::registerNoticationCallbackHandler(boost::shared_ptr<cNotificationCallbackInterface> pNewHandler)
+{
+    boost::unique_lock<boost::shared_mutex> oLock(m_oCallbackHandlersMutex);
+
+    m_vpNotificationCallbackHandlers.push_back(pNewHandler);
+
+    cout << "cTCPReceiver::registerNoticationCallbackHandler(): Successfully registered callback handler: " << pNewHandler.get() << endl;
+}
+
+void cTCPReceiver::deregisterNotificationCallbackHandler(boost::shared_ptr<cNotificationCallbackInterface> pHandler)
+{
+    boost::unique_lock<boost::shared_mutex> oLock(m_oCallbackHandlersMutex);
+    bool bSuccess = false;
+
+    //Search for matching pointer values and erase
+    for(uint32_t ui = 0; ui < m_vpNotificationCallbackHandlers.size();)
+    {
+        if(m_vpNotificationCallbackHandlers[ui].get() == pHandler.get())
+        {
+            m_vpNotificationCallbackHandlers.erase(m_vpNotificationCallbackHandlers.begin() + ui);
+
+            cout << "cTCPReceiver::deregisterNotificationCallbackHandler(): Deregistered callback handler: " << pHandler.get() << endl;
+            bSuccess = true;
+        }
+        else
+        {
+            ui++;
+        }
+    }
+
+    if(!bSuccess)
+    {
+        cout << "cTCPReceiver::deregisterNotificationCallbackHandler(): Warning: Deregistering callback handler: " << pHandler.get() << " failed. Object instance not found." << endl;
+    }
 }
