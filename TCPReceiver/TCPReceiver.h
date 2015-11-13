@@ -25,7 +25,9 @@ public:
 
     virtual void                                                        stopReceiving();
 
+    void                                                                registerNoticationCallbackHandler(cNotificationCallbackInterface* pNewHandler);
     void                                                                registerNoticationCallbackHandler(boost::shared_ptr<cNotificationCallbackInterface> pNewHandler);
+    void                                                                deregisterNotificationCallbackHandler(cNotificationCallbackInterface* pHandler);
     void                                                                deregisterNotificationCallbackHandler(boost::shared_ptr<cNotificationCallbackInterface> pHandler);
 
 protected:
@@ -33,7 +35,8 @@ protected:
     cInterruptibleBlockingTCPSocket                                     m_oSocket;
 
     //Callback handlers
-    std::vector<boost::shared_ptr<cNotificationCallbackInterface> >     m_vpNotificationCallbackHandlers;
+    std::vector<cNotificationCallbackInterface*>                        m_vpNotificationCallbackHandlers;
+    std::vector<boost::shared_ptr<cNotificationCallbackInterface> >     m_vpNotificationCallbackHandlers_shared;
 
     //Thread functions
     virtual void                                                        socketReceivingThreadFunction();

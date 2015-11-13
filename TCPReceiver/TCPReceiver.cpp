@@ -29,26 +29,34 @@ void cTCPReceiver::socketReceivingThreadFunction()
     cout << "Entered cTCPReceiver::socketReceivingThreadFunction()" << endl;
 
     //First attempt to connect socket
-    while(!m_oSocket.openAndConnect(m_strPeerAddress, m_u16PeerPort))
+    if(m_oSocket.openAndConnect(m_strPeerAddress, m_u16PeerPort))
     {
-        if(isShutdownRequested() || !isReceivingEnabled())
-        {
-            cout << "cTCPReceiver::socketReceivingThreadFunction(): Got shutdown flag, returning." << endl;
-            return;
-        }
-
-        //Wait some time then try to bind again...
-        boost::this_thread::sleep(boost::posix_time::milliseconds(2000));
-        cout << "cTCPReceiver::socketReceivingThreadFunction(): Retrying socket connection to " << m_strPeerAddress << ":" << m_u16PeerPort << endl;
-    }
-
-    //Notify of socket connection
-    {
+        //Notification of socket connection
         boost::unique_lock<boost::shared_mutex> oLock(m_oCallbackHandlersMutex);
 
         for(uint32_t ui = 0; ui < m_vpNotificationCallbackHandlers.size(); ui++)
         {
             m_vpNotificationCallbackHandlers[ui]->socketConnected_callback();
+        }
+
+        for(uint32_t ui = 0; ui < m_vpNotificationCallbackHandlers_shared.size(); ui++)
+        {
+            m_vpNotificationCallbackHandlers_shared[ui]->socketConnected_callback();
+        }
+    }
+    else
+    {
+        //Notification of socket connection failure
+        boost::unique_lock<boost::shared_mutex> oLock(m_oCallbackHandlersMutex);
+
+        for(uint32_t ui = 0; ui < m_vpNotificationCallbackHandlers.size(); ui++)
+        {
+            m_vpNotificationCallbackHandlers[ui]->socketDisconnected_callback();
+        }
+
+        for(uint32_t ui = 0; ui < m_vpNotificationCallbackHandlers_shared.size(); ui++)
+        {
+            m_vpNotificationCallbackHandlers_shared[ui]->socketDisconnected_callback();
         }
     }
 
@@ -99,6 +107,11 @@ void cTCPReceiver::socketReceivingThreadFunction()
                         m_vpNotificationCallbackHandlers[ui]->socketDisconnected_callback();
                     }
 
+                    for(uint32_t ui = 0; ui < m_vpNotificationCallbackHandlers_shared.size(); ui++)
+                    {
+                        m_vpNotificationCallbackHandlers_shared[ui]->socketDisconnected_callback();
+                    }
+
                     cout << "cTCPReceiver::socketReceivingThread(): socket disconnected." << endl;
                     stopReceiving();
                     m_oSocket.close();
@@ -140,13 +153,49 @@ void  cTCPReceiver::stopReceiving()
     m_oSocket.cancelCurrrentOperations();
 }
 
-void cTCPReceiver::registerNoticationCallbackHandler(boost::shared_ptr<cNotificationCallbackInterface> pNewHandler)
+void cTCPReceiver::registerNoticationCallbackHandler(cNotificationCallbackInterface* pNewHandler)
 {
     boost::unique_lock<boost::shared_mutex> oLock(m_oCallbackHandlersMutex);
 
     m_vpNotificationCallbackHandlers.push_back(pNewHandler);
 
+    cout << "cTCPReceiver::registerNoticationCallbackHandler(): Successfully registered callback handler: " << pNewHandler << endl;
+}
+
+void cTCPReceiver::registerNoticationCallbackHandler(boost::shared_ptr<cNotificationCallbackInterface> pNewHandler)
+{
+    boost::unique_lock<boost::shared_mutex> oLock(m_oCallbackHandlersMutex);
+
+    m_vpNotificationCallbackHandlers_shared.push_back(pNewHandler);
+
     cout << "cTCPReceiver::registerNoticationCallbackHandler(): Successfully registered callback handler: " << pNewHandler.get() << endl;
+}
+
+void cTCPReceiver::deregisterNotificationCallbackHandler(cNotificationCallbackInterface* pHandler)
+{
+    boost::unique_lock<boost::shared_mutex> oLock(m_oCallbackHandlersMutex);
+    bool bSuccess = false;
+
+    //Search for matching pointer values and erase
+    for(uint32_t ui = 0; ui < m_vpNotificationCallbackHandlers.size();)
+    {
+        if(m_vpNotificationCallbackHandlers[ui] == pHandler)
+        {
+            m_vpNotificationCallbackHandlers.erase(m_vpNotificationCallbackHandlers.begin() + ui);
+
+            cout << "cTCPReceiver::deregisterNotificationCallbackHandler(): Deregistered callback handler: " << pHandler << endl;
+            bSuccess = true;
+        }
+        else
+        {
+            ui++;
+        }
+    }
+
+    if(!bSuccess)
+    {
+        cout << "cTCPReceiver::deregisterNotificationCallbackHandler(): Warning: Deregistering callback handler: " << pHandler << " failed. Object instance not found." << endl;
+    }
 }
 
 void cTCPReceiver::deregisterNotificationCallbackHandler(boost::shared_ptr<cNotificationCallbackInterface> pHandler)
@@ -155,11 +204,11 @@ void cTCPReceiver::deregisterNotificationCallbackHandler(boost::shared_ptr<cNoti
     bool bSuccess = false;
 
     //Search for matching pointer values and erase
-    for(uint32_t ui = 0; ui < m_vpNotificationCallbackHandlers.size();)
+    for(uint32_t ui = 0; ui < m_vpNotificationCallbackHandlers_shared.size();)
     {
-        if(m_vpNotificationCallbackHandlers[ui].get() == pHandler.get())
+        if(m_vpNotificationCallbackHandlers_shared[ui].get() == pHandler.get())
         {
-            m_vpNotificationCallbackHandlers.erase(m_vpNotificationCallbackHandlers.begin() + ui);
+            m_vpNotificationCallbackHandlers_shared.erase(m_vpNotificationCallbackHandlers_shared.begin() + ui);
 
             cout << "cTCPReceiver::deregisterNotificationCallbackHandler(): Deregistered callback handler: " << pHandler.get() << endl;
             bSuccess = true;
