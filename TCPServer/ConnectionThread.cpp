@@ -72,12 +72,14 @@ bool cConnectionThread::isShutdownRequested()
 
 bool cConnectionThread::tryAddDataToSend(char* cpData, uint32_t u32Size_B)
 {
-    //Try to get the next free pointer. (For max 10 ms)
-    int32_t i32Index = m_oBuffer.getNextWriteIndex(10);
+    //Try to get the next free pointer. (For max 1 ms)
+    int32_t i32Index = m_oBuffer.tryToGetNextWriteIndex();
 
     //If the is not space in the buffer return false.
     if(i32Index == -1)
+    {
         return false;
+    }
 
     //Otherwise check that our buffer is large enough
     if(u32Size_B > m_oBuffer.getElementPointer(i32Index)->allocationSize())

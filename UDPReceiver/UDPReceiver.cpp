@@ -27,6 +27,8 @@ cUDPReceiver::~cUDPReceiver()
     //Base destructor calls shutdown.
 
     stopReceiving();
+
+    m_oSocket.close();
 }
 
 void cUDPReceiver::socketReceivingThreadFunction()

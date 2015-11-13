@@ -24,6 +24,19 @@ cTCPServer::~cTCPServer()
 {
     shutdown();
 
+    {
+        boost::unique_lock<boost::shared_mutex>  oLock(m_oConnectThreadsMutex);
+        m_vpConnectionThreads.clear();
+    }
+}
+
+void cTCPServer::shutdown()
+{
+    {
+        boost::unique_lock<boost::shared_mutex>  oLock(m_bShutdownFlagMutex);
+        m_bShutdownFlag = true;
+    }
+
     if(m_oTCPAcceptor.isOpen())
         m_oTCPAcceptor.close();
 
@@ -31,16 +44,6 @@ cTCPServer::~cTCPServer()
     {
         m_pSocketListeningThread->join();
     }
-
-    m_vpConnectionThreads.clear();
-}
-
-void cTCPServer::shutdown()
-{
-    boost::upgrade_lock<boost::shared_mutex>  oLock(m_bShutdownFlagMutex);
-    boost::upgrade_to_unique_lock<boost::shared_mutex>  oUniqueLock(oLock);
-
-    m_bShutdownFlag = true;
 }
 
 bool cTCPServer::isShutdownRequested()
