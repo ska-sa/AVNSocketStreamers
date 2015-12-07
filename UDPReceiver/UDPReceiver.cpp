@@ -100,10 +100,9 @@ void cUDPReceiver::socketReceivingThreadFunction()
             {
                 cout << "cUDPReceiver::socketReceivingThread(): Warning socket error: " << m_oSocket.getLastError().message() << endl;
             }
-            else
-            {
-                i32BytesLastRead = m_oSocket.getNBytesLastTransferred();
-            }
+
+            i32BytesLastRead = m_oSocket.getNBytesLastTransferred();
+
 
             u32PacketsReceived++;
 
