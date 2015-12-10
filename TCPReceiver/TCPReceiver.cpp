@@ -118,10 +118,8 @@ void cTCPReceiver::socketReceivingThreadFunction()
                     break;
                 }
             }
-            else
-            {
-                i32BytesLastRead = m_oSocket.getNBytesLastTransferred();
-            }
+
+            i32BytesLastRead = m_oSocket.getNBytesLastTransferred();
 
             u32PacketsReceived++;
 
