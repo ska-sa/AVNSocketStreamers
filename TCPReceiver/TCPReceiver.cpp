@@ -91,14 +91,14 @@ void cTCPReceiver::socketReceivingThreadFunction()
         {
             if(!m_oSocket.receive(m_oBuffer.getElementDataPointer(i32Index) + m_oBuffer.getElementPointer(i32Index)->dataSize(), i32BytesLeftToRead) )
             {
-                cout << "cTCPReceiver::socketReceivingThread(): Warning socket error: " << m_oSocket.getLastError().message() << endl;
-                cout << "cTCPReceiver::socketReceivingThread(): Warning socket error value: " << m_oSocket.getLastError().value() << endl;
+                cout << "cTCPReceiver::socketReceivingThread(): Warning socket error: " << m_oSocket.getLastReadError().message() << endl;
+                cout << "cTCPReceiver::socketReceivingThread(): Warning socket error value: " << m_oSocket.getLastReadError().value() << endl;
 
                 //Check for errors from socket disconnection
                 //TODO: This should probably be done with error codes as apposed string matching
 
-                if(m_oSocket.getLastError().message().find("End of file") != string::npos
-                        || m_oSocket.getLastError().message().find("Bad file descriptor") != string::npos )
+                if(m_oSocket.getLastReadError().message().find("End of file") != string::npos
+                        || m_oSocket.getLastReadError().message().find("Bad file descriptor") != string::npos )
                 {
                     boost::unique_lock<boost::shared_mutex> oLock(m_oCallbackHandlersMutex);
 
@@ -119,7 +119,7 @@ void cTCPReceiver::socketReceivingThreadFunction()
                 }
             }
 
-            i32BytesLastRead = m_oSocket.getNBytesLastTransferred();
+            i32BytesLastRead = m_oSocket.getNBytesLastRead();
 
             u32PacketsReceived++;
 
