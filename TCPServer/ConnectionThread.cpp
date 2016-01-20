@@ -174,14 +174,14 @@ void cConnectionThread::socketWritingThreadFunction()
             if(!bSuccess)
                 break;
 
-            u32BytesToTransfer -= m_pSocket->getNBytesLastTransferred();
-            u32BytesTransferred += m_pSocket->getNBytesLastTransferred();
+            u32BytesToTransfer -= m_pSocket->getNBytesLastWritten();
+            u32BytesTransferred += m_pSocket->getNBytesLastWritten();
         }
 
         if(!bSuccess)
         {
-            cout << "cConnectionThread::socketWritingThreadFunction(): Write failed to peer " << m_strPeerAddress << ". Error was: " << m_pSocket->getLastError() << endl;
-            if(m_pSocket->getLastError())
+            cout << "cConnectionThread::socketWritingThreadFunction(): Write failed to peer " << m_strPeerAddress << ". Error was: " << m_pSocket->getLastWriteError() << endl;
+            if(m_pSocket->getLastWriteError())
             {
                 //Mark connection as failed and stop sending data
                 setInvalid();
