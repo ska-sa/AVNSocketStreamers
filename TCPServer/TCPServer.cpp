@@ -73,9 +73,9 @@ void cTCPServer::socketListeningThreadFunction()
 
         catch(boost::system::system_error const &oSystemError)
         {
-            cout << "Failed to bind to port and listen." << endl;
-            cout << "The error was: " << oSystemError.what() << endl;
-            cout << "Retrying in 5 s ..." << endl;
+            cout << "cTCPServer::socketListeningThreadFunction(): Failed to bind to port and listen." << endl;
+            cout << "cTCPServer::socketListeningThreadFunction(): The error was: " << oSystemError.what() << endl;
+            cout << "cTCPServer::socketListeningThreadFunction(): Retrying in 5 s ..." << endl;
             boost::this_thread::sleep(boost::posix_time::milliseconds(5000));
         }
     }
@@ -84,7 +84,7 @@ void cTCPServer::socketListeningThreadFunction()
 
     while(!isShutdownRequested())
     {
-        cout << "Listening for client connections..." << endl;
+        cout << "cTCPServer::socketListeningThreadFunction(): Listening for client connections..." << endl;
 
         std::stringstream oSS;
         oSS << "Connection ";
@@ -99,12 +99,12 @@ void cTCPServer::socketListeningThreadFunction()
             boost::unique_lock<boost::shared_mutex> oLock(m_oConnectThreadsMutex);
             m_vpConnectionThreads.push_back(boost::make_shared<cConnectionThread>(pClientSocket));
 
-            cout << "There are now " << m_vpConnectionThreads.size() << " client(s) connected." << endl;
+            cout << "cTCPServer::socketListeningThreadFunction(): There are now " << m_vpConnectionThreads.size() << " client(s) connected." << endl;
         }
         catch(boost::system::system_error const &oSystemError)
         {
             cout << "cTCPServer::socketListeningThreadFunction(): Caught Exception on accepting incoming connection." << endl;
-            cout << "The error was: " << oSystemError.what() << endl;
+            cout << "cTCPServer::socketListeningThreadFunction():The error was: " << oSystemError.what() << endl;
             continue; //Try again
         }
 

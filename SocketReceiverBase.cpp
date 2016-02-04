@@ -43,8 +43,7 @@ void cSocketReceiverBase::startReceiving()
     u64TotalBytesProcessed = 0;
 
     {
-        boost::upgrade_lock<boost::shared_mutex>  oLock(m_oFlagMutex);
-        boost::upgrade_to_unique_lock<boost::shared_mutex>  oUniqueLock(oLock);
+        boost::unique_lock<boost::shared_mutex>  oLock(m_oFlagMutex);
         m_bReceivingEnabled = true;
     }
 
@@ -161,7 +160,7 @@ int32_t cSocketReceiverBase::getNextPacketSize_B(uint32_t u32Timeout_ms)
 
 bool cSocketReceiverBase::getNextPacket(char *cpData, uint32_t u32Timeout_ms, bool bPopData)
 {
-    //By setting pop data to false this function can be used to peak into the front of the queue. Otherwise it reads
+    //By setting pop data to false this function can be used to peek into the front of the queue. Otherwise it reads
     //data off the queue by default. Note bPopData = true should probably not be used concurrently with callback based
     //offloading as this will results in inconsistent data distribution.
 
@@ -187,7 +186,7 @@ bool cSocketReceiverBase::getNextPacket(char *cpData, uint32_t u32Timeout_ms, bo
         i32Index = m_oBuffer.getNextReadIndex(100);
 
         if(i32Index == -1)
-            cout << "Got semphore timeout." << endl;
+            cout << "Got semaphore timeout." << endl;
 
         //Also check for shutdown flag
         if(!isReceivingEnabled() || isShutdownRequested())
