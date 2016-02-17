@@ -104,7 +104,7 @@ void cTCPServer::socketListeningThreadFunction()
         catch(boost::system::system_error const &oSystemError)
         {
             cout << "cTCPServer::socketListeningThreadFunction(): Caught Exception on accepting incoming connection." << endl;
-            cout << "cTCPServer::socketListeningThreadFunction():The error was: " << oSystemError.what() << endl;
+            cout << "cTCPServer::socketListeningThreadFunction(): The error was: " << oSystemError.what() << endl;
             continue; //Try again
         }
 
@@ -134,7 +134,7 @@ void cTCPServer::writeData(char* cpData, uint32_t u32Size_B)
             cout << "cTCPServer::writeData(): Closing connection to client " << m_vpConnectionThreads[ui]->getPeerAddress();
             if(m_vpConnectionThreads[ui]->getSocketName().length())
                 cout << " (" << m_vpConnectionThreads[ui]->getSocketName() << ")";
-            
+
             cout << endl;
 
             {
